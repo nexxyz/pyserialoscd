@@ -25,7 +25,7 @@ class oscserver_wrapper:
       
   def stop(self):
     print("Stopping OSC server: {}".format(self.friendlyname))
-    self.server.server_close()
+    self.server.shutdown()
     self.server_thread.join()
 
 # The main serialoscd listener
@@ -69,7 +69,7 @@ class serialosc_device_endpoint(oscserver_wrapper):
       print("new port for device requested via {} - {}".format(requestpath, newport))
 
   def set_prefix(self, requestpath, newprefix):
-      print("new prefix for device requested via {} - {}:{}".format(requestpath, newprefix))
+      print("new prefix for device requested via {} - {}".format(requestpath, newprefix))
 
   def set_host(self, requestpath, newhost):
       print("new host for device requested via {} - {}".format(requestpath, newhost))
@@ -138,7 +138,7 @@ class serialosc_device_endpoint(oscserver_wrapper):
       print("set row grid led levels for device requested via {} for offsetx {}, y {} to levels {}".format(requestpath, offsetx, y, levels))
 
   def set_grid_tilt_sensor(self, requestpath, sensor, newactivestate):
-      print("set tilt sensor activestate for device requested via {} to {}".format(requestpath, sensor, newactivestate))
+      print("set tilt sensor activestate for device requested via {} for sensor {} to {}".format(requestpath, sensor, newactivestate))
 
   def set_ring_led(self, requestpath, encoder, led, newlevel):
       print("set ring led requested via {} for encoder {}, led {} to level {}".format(requestpath, encoder, led, newlevel))
