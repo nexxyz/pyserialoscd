@@ -4,9 +4,21 @@ import signal
 
 from pythonosc import dispatcher
 from pythonosc import osc_server
+from pythonosc.udp_client import SimpleUDPClient
 from threading import Thread
 
-# For easy handling of threads and stuff - fix later, as right now terminating the servers is pretty broken
+class oscclient_wrapper:
+  def __init__(self, targetip, targetport):
+    super().__init__()
+    self.targetip = targetip
+    self.targetport = targetport
+    self.client = SimpleUDPClient(targetip, targetport)  # Create client
+  
+  def send_message(self, address, *osc_arguments):
+    print("Sending message to {}:{} with path {} and data {}", self.targetip, self.targetport, address, osc_arguments)
+    self.client.send_message(address, osc_arguments)
+
+# For easy starting and stopping of oscservers
 class oscserver_wrapper:
   def __init__(self, friendlyname):
     super().__init__()
@@ -33,11 +45,12 @@ class serialosc_main_endpoint(oscserver_wrapper):
   def __init__(self):
     super().__init__("serialoscmain")
     # Binding handling of incoming requests
-    self.dispatcher.map("/serialosc/licdfgdst", self.list_devices)
+    self.dispatcher.map("/serialosc/list", self.list_devices)
     self.dispatcher.map("/serialosc/notify", self.notify_next_change)
 
   def list_devices(self, requestpath, targethost, targetport):
     print("list requested via {} for {}:{}".format(requestpath, targethost, targetport))
+    oscclient_wrapper(targethost, targetport).send_message("/serialosc/device", "123", "grid", 12235)
 
   def notify_next_change(self, requestpath, targethost, targetport):
     print("notification for next device requested via {} for {}:{}".format(requestpath, targethost, targetport))
