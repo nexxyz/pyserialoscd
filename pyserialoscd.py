@@ -7,6 +7,9 @@ from pythonosc import osc_server
 from pythonosc.udp_client import SimpleUDPClient
 from threading import Thread
 
+# -----------
+# To make it a bit easier to send osc messages
+# -----------
 class oscclient_wrapper:
   def __init__(self, targetip, targetport):
     super().__init__()
@@ -15,10 +18,12 @@ class oscclient_wrapper:
     self.client = SimpleUDPClient(targetip, targetport)  # Create client
   
   def send_message(self, address, *osc_arguments):
-    print("Sending message to {}:{} with path {} and data {}", self.targetip, self.targetport, address, osc_arguments)
+    print("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, make_tuple_printable(osc_arguments)))
     self.client.send_message(address, osc_arguments)
 
+# -----------
 # For easy starting and stopping of oscservers
+# -----------
 class oscserver_wrapper:
   def __init__(self, friendlyname):
     super().__init__()
@@ -26,8 +31,8 @@ class oscserver_wrapper:
     self.dispatcher = dispatcher.Dispatcher()
     self.dispatcher.set_default_handler(self.default_osc_handler, self)
   
-  def default_osc_handler(self, requestpath, *osc_arguments):
-    print("WARNING: Unhandled OSC message received. Path: {}, Parameters {}", osc_arguments[:])
+  def default_osc_handler(self, source, *osc_arguments):
+    print("WARNING: Unhandled OSC message received. Source: {}, Content {}".format(source, make_tuple_printable(osc_arguments)))
 
   def start(self, ip, port):
     self.server = osc_server.BlockingOSCUDPServer((ip, port), self.dispatcher)
@@ -40,7 +45,9 @@ class oscserver_wrapper:
     self.server.shutdown()
     self.server_thread.join()
 
+# -----------
 # The main serialoscd listener
+# -----------
 class serialosc_main_endpoint(oscserver_wrapper):
   def __init__(self):
     super().__init__("serialoscmain")
@@ -50,12 +57,14 @@ class serialosc_main_endpoint(oscserver_wrapper):
 
   def list_devices(self, requestpath, targethost, targetport):
     print("list requested via {} for {}:{}".format(requestpath, targethost, targetport))
-    oscclient_wrapper(targethost, targetport).send_message("/serialosc/device", "123", "grid", 12235)
+    oscclient_wrapper(targethost, targetport).send_message("/serialosc/device", "123", "led-grid", 12235)
 
   def notify_next_change(self, requestpath, targethost, targetport):
     print("notification for next device requested via {} for {}:{}".format(requestpath, targethost, targetport))
 
+# -----------
 # Each device will be represented by one endpoint
+# -----------
 class serialosc_device_endpoint(oscserver_wrapper):
   def __init__(self, name):
     super().__init__(name)
@@ -64,7 +73,7 @@ class serialosc_device_endpoint(oscserver_wrapper):
     self.dispatcher.map("/grid/led/set", self.set_grid_led)
     self.dispatcher.map("/grid/led/all", self.set_grid_led_all)
     self.dispatcher.map("/grid/led/map", self.set_grid_led_map)
-    self.dispatcher.map("/grid/led/col", self.set_grid_led_column,)
+    self.dispatcher.map("/grid/led/col", self.set_grid_led_column)
     self.dispatcher.map("/grid/led/row", self.set_grid_led_row)
     self.dispatcher.map("/grid/led/intensity", self.set_grid_intensity)
     self.dispatcher.map("/grid/led/level/set", self.set_grid_led_level)
@@ -104,21 +113,21 @@ class serialosc_device_endpoint(oscserver_wrapper):
       offsetx = osc_arguments[1]
       offsety = osc_arguments[2]
       statebitmap = osc_arguments[3:]
-      print("set all grid leds for device requested via {} for offset {}, {} to state-bitmap {}".format(requestpath, offsetx, offsety, statebitmap))
+      print("set all grid leds for device requested via {} for offset {}, {} to state-bitmap {}".format(requestpath, offsetx, offsety, make_tuple_printable(statebitmap)))
 
   def set_grid_led_column(self, requestpath, *osc_arguments):
       requestpath = osc_arguments[0]
       x = osc_arguments[1]
       offsety = osc_arguments[2]
       states = osc_arguments[3:]
-      print("set column grid leds for device requested via {} for x {}, offsety {} to states {}".format(requestpath, x, offsety, states))
+      print("set column grid leds for device requested via {} for x {}, offsety {} to states {}".format(requestpath, x, offsety, make_tuple_printable(states)))
 
   def set_grid_led_row(self, requestpath, *osc_arguments):
       requestpath = osc_arguments[0]
       offsetx = osc_arguments[1]
       y = osc_arguments[2]
       states = osc_arguments[3:]
-      print("set row grid leds for device requested via {} for offsetx {}, y {} to states {}".format(requestpath, offsetx, y, states))
+      print("set row grid leds for device requested via {} for offsetx {}, y {} to states {}".format(requestpath, offsetx, y, make_tuple_printable(states)))
 
   def set_grid_intensity(self, requestpath, newintensity):
       print("set intensity for device requested via {} to {}".format(requestpath, newintensity))
@@ -134,21 +143,21 @@ class serialosc_device_endpoint(oscserver_wrapper):
       offsetx = osc_arguments[1]
       offsety = osc_arguments[2]
       levelbitmap = osc_arguments[3:]
-      print("set all grid led levels for device requested via {} for offset {}, {} to state-bitmap {}".format(requestpath, offsetx, offsety, levelbitmap))
+      print("set all grid led levels for device requested via {} for offset {}, {} to state-bitmap {}".format(requestpath, offsetx, offsety, make_tuple_printable(levelbitmap)))
 
   def set_grid_led_column_level(self, requestpath, *osc_arguments):
       requestpath = osc_arguments[0]
       x = osc_arguments[1]
       offsety = osc_arguments[2]
       levels = osc_arguments[3:]
-      print("set columin grid led levels for device requested via {} for x {}, offsety {} to state-bitmap {}".format(requestpath, x, offsety, levels))
+      print("set columin grid led levels for device requested via {} for x {}, offsety {} to state-bitmap {}".format(requestpath, x, offsety, make_tuple_printable(levels)))
 
   def set_grid_led_row_level(self, requestpath, *osc_arguments):
       requestpath = osc_arguments[0]
       offsetx = osc_arguments[1]
       y = osc_arguments[2]
       levels = osc_arguments[3:]
-      print("set row grid led levels for device requested via {} for offsetx {}, y {} to levels {}".format(requestpath, offsetx, y, levels))
+      print("set row grid led levels for device requested via {} for offsetx {}, y {} to levels {}".format(requestpath, offsetx, y, make_tuple_printable(levels)))
 
   def set_grid_tilt_sensor(self, requestpath, sensor, newactivestate):
       print("set tilt sensor activestate for device requested via {} for sensor {} to {}".format(requestpath, sensor, newactivestate))
@@ -162,14 +171,19 @@ class serialosc_device_endpoint(oscserver_wrapper):
   def set_ring_led_map(self, requestpath, *osc_arguments):
       encoder = osc_arguments[0]
       newlevels = osc_arguments[1:]
-      print("set ring leds requested via {} for encoder {} to levels {}".format(requestpath, encoder, newlevels))
+      print("set ring leds requested via {} for encoder {} to levels {}".format(requestpath, encoder, make_tuple_printable(newlevels)))
 
   def set_ring_led_range(self, requestpath, encoder, ledfrom, ledto, newlevel):
       print("set all ring leds requested via {} for encoder {}, leds {} to {}, to level {}".format(requestpath, encoder, ledfrom, ledto, newlevel))
 
+# -----------
+# Utils
+# -----------
+def make_tuple_printable(*args):
+  return " ".join(map(str, args))
 
 # -----------
-# Main entry point
+# Cleanup
 # -----------
 def keyboardInterruptHandler(signal, frame):
     print("KeyboardInterrupt (ID: {}) has been caught. Cleaning up...".format(signal))
@@ -179,13 +193,10 @@ def keyboardInterruptHandler(signal, frame):
     serialosc.stop()
     exit(0)
 
+# -----------
+# Main entry point
+# -----------
 if __name__ == "__main__":
-  # Arguments and defaults
-  parser = argparse.ArgumentParser()
-  parser.add_argument("--ip", default="127.0.0.1", help="The ip to listen on")
-  parser.add_argument("--port", type=int, default=12002, help="The port to listen on")
-  args = parser.parse_args()
-
   signal.signal(signal.SIGINT, keyboardInterruptHandler)
 
   # Main server
