@@ -1,7 +1,7 @@
 # pyserialoscd
 A python-based simplified serialosc-like implementation
 
-I started to make this to use my neotrellis-monome (see https://github.com/okyeron/neotrellis-monome). Due to the windows version of serialosc requiring an FTDI device to find it in the Windows registry, e.g. teensy-based devices are not picked up by serialoscd. 
+I started to make this to use my neotrellis-monome by @okeyron (see https://github.com/okyeron/neotrellis-monome). Due to the windows version of serialosc requiring an FTDI device to find it in the Windows registry, e.g. teensy-based devices are not picked up by serialoscd. 
 
 And for fun.
 
