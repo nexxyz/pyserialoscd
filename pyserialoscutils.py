@@ -6,7 +6,7 @@ from threading import Thread
 # -----------
 # To make it a bit easier to send osc messages
 # -----------
-class oscclient_wrapper:
+class OscClientWrapper:
   def __init__(self, targetip, targetport):
     super().__init__()
     self.targetip = map_localhost_to_ip4(targetip)
@@ -20,7 +20,7 @@ class oscclient_wrapper:
 # -----------
 # For easy starting and stopping of oscservers
 # -----------
-class oscserver_wrapper:
+class OscServerWrapper:
   def __init__(self, friendlyname):
     super().__init__()
     self.friendlyname = friendlyname

@@ -7,7 +7,7 @@ import pyserialoscdevice
 # -----------
 # The main serialoscd listener
 # -----------
-class serialosc_main_endpoint(pyserialoscutils.oscserver_wrapper):
+class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
   def __init__(self):
     super().__init__("serialoscmain")
     # Binding handling of incoming requests
@@ -20,7 +20,7 @@ class serialosc_main_endpoint(pyserialoscutils.oscserver_wrapper):
     print("list requested via {} for {}:{}".format(requestpath, targethost, targetport))
 
     for device in self.devices:
-      pyserialoscutils.oscclient_wrapper(targethost, targetport).send_message("/serialosc/device", device.id, device.type, device.port)
+      pyserialoscutils.OscClientWrapper(targethost, targetport).send_message("/serialosc/device", device.id, device.type, device.port)
 
   def notify_next_change(self, requestpath, targethost, targetport):
     print("notification for next device requested via {} for {}:{}".format(requestpath, targethost, targetport))
@@ -29,13 +29,13 @@ class serialosc_main_endpoint(pyserialoscutils.oscserver_wrapper):
   def registerdevice(self, device):
     self.devices.append(device)
     for notifytarget in self.notifytargets:
-      pyserialoscutils.oscclient_wrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/add", device.id)
+      pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/add", device.id)
     self.notifytargets = []
   
   def unregisterdevice(self, device):
     self.devices.remove(device)
     for notifytarget in self.notifytargets:
-      pyserialoscutils.oscclient_wrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/remove", device.id)
+      pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/remove", device.id)
     self.notifytargets = []
 
 # -----------
@@ -62,11 +62,11 @@ if __name__ == "__main__":
   signal.signal(signal.SIGINT, keyboardInterruptHandler)
 
   # Main server
-  serialosc = serialosc_main_endpoint()
+  serialosc = SerialOscMainEndpoint()
   serialosc.start("localhost", 12002)
 
   # Device
-  device = pyserialoscdevice.serialosc_device("m0000045", "grid")
+  device = pyserialoscdevice.SerialOscDevice("m0000045", "grid")
   device.start("localhost", 12235)
   serialosc.registerdevice(device)
   
