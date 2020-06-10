@@ -1,136 +1,103 @@
 from pythonosc import dispatcher
 import pyserialoscutils
 
+
+# -----------
+# Actions to queue for the serial communication
+# -----------
+class SerialAction:
+    def __init__(self, actionname, *actionargs):
+        self.actionname = actionname
+        self.actionargs = actionargs
+
 # -----------
 # Each device will be represented by one endpoint
 # -----------
-class SerialOscDevice(pyserialoscutils.OscServerWrapper):
-  def __init__(self, deviceid, devicetype, messageprefix = "", size=[16, 8], destinationhost = "", destinationport = 0, rotation = 0):
+class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
+  def __init__(self, deviceid, devicetype, messageprefix = "/monome", size=[16, 8], destinationhost = "localhost", destinationport = 12222, rotation = 0):
     super().__init__(deviceid)
-    
-    # set device info
     self.id = deviceid
     self.type = devicetype
     self.messageprefix = messageprefix
     self.size = size
-    self.destinationport = destinationport
     self.destinationhost = destinationhost
+    self.destinationport = destinationport
     self.rotation = rotation
-
-    self.dispatcher = dispatcher.Dispatcher()
-    self.dispatcher.map("/sys/port", self.set_destination_port)
+    self.__actionqueue = []
     self.dispatcher.map("/sys/host", self.set_destination_host)
+    self.dispatcher.map("/sys/port", self.set_destination_port)
     self.dispatcher.map("/sys/prefix", self.set_message_prefix)
     self.dispatcher.map("/sys/rotation", self.set_rotation)
-    self.dispatcher.map("/sys/info", self.send_info)
+    self.dispatcher.map("/info", self.get_info)
+    self.dispatcher.map("/sys/info", self.get_info)
 
-    self.dispatcher.map("/grid/led/set", self.set_grid_led)
-    self.dispatcher.map("/grid/led/all", self.set_grid_led_all)
-    self.dispatcher.map("/grid/led/map", self.set_grid_led_map)
-    self.dispatcher.map("/grid/led/col", self.set_grid_led_column)
-    self.dispatcher.map("/grid/led/row", self.set_grid_led_row)
-    self.dispatcher.map("/grid/led/intensity", self.set_grid_intensity)
-    self.dispatcher.map("/grid/led/level/set", self.set_grid_led_level)
-    self.dispatcher.map("/grid/led/level/all", self.set_grid_led_all_level)
-    self.dispatcher.map("/grid/led/level/map", self.set_grid_led_map_level)
-    self.dispatcher.map("/grid/led/level/col", self.set_grid_led_column_level)
-    self.dispatcher.map("/grid/led/level/row", self.set_grid_led_row_level)
-    self.dispatcher.map("/grid/tilt", self.set_grid_tilt_sensor)
-    self.dispatcher.map("/ring/set", self.set_ring_led)
-    self.dispatcher.map("/ring/all", self.set_ring_led_all)
-    self.dispatcher.map("/ring/map", self.set_ring_led_map)
-    self.dispatcher.map("/ring/range", self.set_ring_led_range)
+  def default_osc_handler(self, source, *osc_arguments):
+    print("Processing device OSC command for device {}, Source: {}, Content {}".format(self.id, source, osc_arguments))
+    self.__actionqueue.append(SerialAction(source, osc_arguments))
 
-  # osc communication calls
+  def start(self, ip, port):
+    super().start(ip, port)
+  
+  def stop(self):
+    super().stop()
+
+  # receiving messages
   def set_destination_port(self, requestpath, newport):
-      print("new destination port for device {} requested via {} - {}".format(self.id, requestpath, newport))
-      self.destinationport = newport
+    print("new destination port for device {} requested - {}".format(self.id, newport))
+    self.destinationport = newport
 
   def set_destination_host(self, requestpath, newhost):
-      print("new host for device {} requested via {} - {}".format(self.id, requestpath, newhost))
-      self.destinationhost = newhost
+    print("new host for device {} requested - {}".format(self.id, newhost))
+    self.destinationhost = newhost
 
   def set_message_prefix(self, requestpath, newmessageprefix):
-      print("new prefix for device {} requested via {} - {}".format(self.id, requestpath, newmessageprefix))
-      self.messageprefix = newmessageprefix
+    print("new message prefix for device {} requested - {}".format(self.id, newmessageprefix))
+    self.messageprefix = newmessageprefix
 
-  # device calls
-  def set_rotation(self, requestpath, newrotationdegrees):
-      print("new rotation for device {} requested via {} - {}".format(self.id, requestpath, newrotationdegrees))
+  def set_rotation(self, requestpath, newrotation):
+    print("new rotation for device {} requested - {}".format(self.id, newrotation))
+    self.rotation = newrotation
 
-  def send_info(self, requestpath, targethost="", targetport=""):
-      print("info for device {} requested via {} for {}:{}".format(self.id, requestpath, targethost, targetport))
+  def get_info(self, requestpath, destinationhost = "", destinationport = ""):
+    print("info requested for device {} to targethost {} and targetport {}".format(self.id, destinationhost, destinationport))
+    self.send_info(destinationhost, destinationport)
 
-  def set_grid_led(self, requestpath, x, y, newstate):
-      print("set grid led for device {} requested via {} for {}:{} to state {}".format(self.id, requestpath, x, y, newstate))
+  # sending messages
+  def send_prefix_message_to_destination(self, path, *osc_arguments):
+    print("device {} sending message to destination with path {} and args {}".format(self.id, path, osc_arguments))
+    pyserialoscutils.OscClientWrapper(self.destinationhost, self.destinationport).send_message(self.messageprefix + path, *osc_arguments)
 
-  def set_grid_led_all(self, requestpath, newstate):
-      print("set all grid leds for device {} requested via {} to state {}".format(self.id, requestpath, newstate))
+  def send_message_to_destination(self, path, *osc_arguments):
+    print("device {} sending message to destination with path {} and args {}".format(self.id, path, osc_arguments))
+    pyserialoscutils.OscClientWrapper(self.destinationhost, self.destinationport).send_message(path, *osc_arguments)
 
-  def set_grid_led_map(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      statebitmap = osc_arguments[3:]
-      print("set all grid leds for device {} requested via {} for offset {}, {} to state-bitmap {}".format(self.id, requestpath, offsetx, offsety, statebitmap))
+  def send_message_to_specific_endpoint(self, host, port, path, *osc_arguments):
+    print("device {} sending message to {}:{} with path {} and args {}".format(self.id, host, port, path, osc_arguments))
+    # pyserialoscutils.OscClientWrapper(host, port).send_message(self.messageprefix + path, osc_arguments)
+    pyserialoscutils.OscClientWrapper(host, port).send_message(path, *osc_arguments)
 
-  def set_grid_led_column(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      x = osc_arguments[1]
-      offsety = osc_arguments[2]
-      states = osc_arguments[3:]
-      print("set column grid leds for device {} requested via {} for x {}, offsety {} to states {}".format(self.id, requestpath, x, offsety, states))
+  def send_info(self, destinationhost = "", destinationport = ""):
+    if(destinationhost == ""):
+        destinationhost = self.destinationport
+    if(destinationport == ""):
+        destinationport = self.destinationport
+    print("Device {} sending info with  targethost {} and targetport {}".format(self.id, destinationhost, destinationport))
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/id", self.id)
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/size", self.size[0], self.size[1])
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/host", self.destinationhost)
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/port", self.destinationport)
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/prefix", self.messageprefix)
+    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/rotation", self.rotation)
 
-  def set_grid_led_row(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      offsetx = osc_arguments[1]
-      y = osc_arguments[2]
-      states = osc_arguments[3:]
-      print("set row grid leds for device {} requested via {} for offsetx {}, y {} to states {}".format(self.id, requestpath, offsetx, y, states))
+  def send_grid_key(self, x, y, state):
+    print("Device {} sending key x {}, y {}, state {}".format(self.id, x, y, state))
 
-  def set_grid_intensity(self, requestpath, newintensity):
-      print("set intensity for device {} requested via {} to {}".format(self.id, requestpath, newintensity))
+  def send_tilt(self, n, x, y, z):
+    print("Device {} sending tilt n {}, x {}, y {}, z {}".format(self.id, n, x, y, z))
 
-  def set_grid_led_level(self, requestpath, x, y, newlevel):
-      print("set grid led level for device {} requested via {} for {}:{} to state {}".format(self.id, requestpath, x, y, newlevel))
-
-  def set_grid_led_all_level(self, requestpath, newlevel):
-      print("set all grid led levels for device {} requested via {} to state {}".format(self.id, requestpath, newlevel))
-
-  def set_grid_led_map_level(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      levelbitmap = osc_arguments[3:]
-      print("set all grid led levels for device {} requested via {} for offset {}, {} to state-bitmap {}".format(self.id, requestpath, offsetx, offsety, levelbitmap))
-
-  def set_grid_led_column_level(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      x = osc_arguments[1]
-      offsety = osc_arguments[2]
-      levels = osc_arguments[3:]
-      print("set columin grid led levels for device {} requested via {} for x {}, offsety {} to state-bitmap {}".format(self.id, requestpath, x, offsety, levels))
-
-  def set_grid_led_row_level(self, requestpath, *osc_arguments):
-      requestpath = osc_arguments[0]
-      offsetx = osc_arguments[1]
-      y = osc_arguments[2]
-      levels = osc_arguments[3:]
-      print("set row grid led levels for device {} requested via {} for offsetx {}, y {} to levels {}".format(self.id, requestpath, offsetx, y, levels))
-
-  def set_grid_tilt_sensor(self, requestpath, sensor, newactivestate):
-      print("set tilt sensor activestate for device {} requested via {} for sensor {} to {}".format(self.id, requestpath, sensor, newactivestate))
-
-  def set_ring_led(self, requestpath, encoder, led, newlevel):
-      print("set ring led requested for device {} via {} for encoder {}, led {} to level {}".format(self.id, requestpath, encoder, led, newlevel))
-
-  def set_ring_led_all(self, requestpath, encoder, newlevel):
-      print("set all ring leds requested for device {} via {} for encoder {} to level {}".format(self.id, requestpath, encoder, newlevel))
-
-  def set_ring_led_map(self, requestpath, *osc_arguments):
-      encoder = osc_arguments[0]
-      newlevels = osc_arguments[1:]
-      print("set ring leds requested for device {} via {} for encoder {} to levels {}".format(self.id, requestpath, encoder, newlevels))
-
-  def set_ring_led_range(self, requestpath, encoder, ledfrom, ledto, newlevel):
-      print("set all ring leds requested for device {} via {} for encoder {}, leds {} to {}, to level {}".format(self.id, requestpath, encoder, ledfrom, ledto, newlevel))
+  def send_arc(self, n, d):
+    print("Device {} sending arc n {}, d {}".format(self.id, n, d))
+  
+  def send_enc(self, n, state):
+    print("Device {} sending encoder n {}, state {}".format(self.id, n, state))
+  
