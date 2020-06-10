@@ -4,12 +4,6 @@ from pythonosc import dispatcher
 import pyserialoscutils
 
 # -----------
-# Utils
-# -----------
-def make_tuple_printable(*args):
-  return " ".join(map(str, args))
-
-# -----------
 # Cleanup
 # -----------
 def keyboardInterruptHandler(signal, frame):
@@ -24,9 +18,9 @@ def keyboardInterruptHandler(signal, frame):
 if __name__ == "__main__":
   signal.signal(signal.SIGINT, keyboardInterruptHandler)
 
-  testapplication_ip = "127.0.0.1"
-  testapplication_port = 17777
-  serialosc_ip = "127.0.0.1"
+  testapplication_ip = "localhost"
+  testapplication_port = 15555
+  serialosc_ip = "localhost"
   serialosc_port = 12002
 
   # Test Application
@@ -35,5 +29,5 @@ if __name__ == "__main__":
   
   print("Press CTRL-C to stop")
   while True:
-    pyserialoscutils.oscclient_wrapper(serialosc_ip, serialosc_port).send_message("/serialosc/list", "127.0.0.1", 17777)
+    pyserialoscutils.oscclient_wrapper(serialosc_ip, serialosc_port).send_message("/serialosc/list", "localhost", 15555)
     time.sleep(1)
