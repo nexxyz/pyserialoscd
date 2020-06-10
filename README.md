@@ -9,4 +9,4 @@ Currently the OSC receiving part is implemented, and I am working on the interac
 
 To test it, you can run pyserialoscd and either press the "list" button in something like monome-home.maxpat, or you can run the pyserialtestharness, which will send a list request every second.
 
-As mentioned, current work is on the serial side of things. In this way, pyserialoscserialadapter works as both the implementation and the test file, so you can run it to get basic info on your device right now (you have to adapt the port name, currently it is hardcoded to COM10 which is my neotrellis-monome)
+As mentioned, current work is on the serial side of things. In this way, pyserialoscserialadapter works as both the implementation and the test file, so you can run it to get basic info on your device right now (you have to adapt the port name (currently it is hardcoded to COM10 which is my neotrellis-monome).
