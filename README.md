@@ -5,7 +5,7 @@ I started to make this to use my neotrellis-monome by okeyron (see https://githu
 
 And for fun.
 
-Currently the OSC receiving part is somewhat implemented, and I am working on the interaction on the serial side of things right now. Afterwards, I will put the two together, and also have autodetection of devices if possible, using a modified version of the com-port-listing from pyserial.
+Currently the OSC receiving part is somewhat implemented, and I am working on the interaction on the serial side of things right now. Afterwards, I will put the two together, and also have autodetection of devices if possible, using a modified version of the com-port-listing from pyserial. There is already a stripped-down version of this in the code.
 
 To test it, you can run pyserialoscd and either press the "list" button in something like monome-home.maxpat, or you can run the pyserialtestharness, which will send a list request every second.
 
