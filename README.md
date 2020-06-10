@@ -1,2 +1,2 @@
 # pyserialoscd
-A pythong-based simplified serialosc-like implementation
+A python-based simplified serialosc-like implementation
