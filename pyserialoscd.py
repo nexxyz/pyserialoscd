@@ -27,16 +27,25 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
     self.notifytargets.append((targethost, targetport))
 
   def registerdevice(self, device):
+    print("Registering device {}".format(device.id))
     self.devices.append(device)
     for notifytarget in self.notifytargets:
       pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/add", device.id)
     self.notifytargets = []
   
   def unregisterdevice(self, device):
+    print("Unregistering device {}".format(device.id))
     self.devices.remove(device)
     for notifytarget in self.notifytargets:
       pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/remove", device.id)
     self.notifytargets = []
+
+  def stop(self):
+    for device in self.devices:
+      self.unregisterdevice(device)
+      device.stop()
+    super().stop()
+      
 
 # -----------
 # Utils
@@ -49,8 +58,6 @@ def make_tuple_printable(*args):
 # -----------
 def keyboardInterruptHandler(signal, frame):
     print("KeyboardInterrupt (ID: {}) has been caught. Cleaning up...".format(signal))
-    print("Stopping devices")
-    device.stop()
     print("Stopping serialosc")
     serialosc.stop()
     exit(0)
@@ -66,7 +73,7 @@ if __name__ == "__main__":
   serialosc.start("localhost", 12002)
 
   # Device
-  device = pyserialoscdevice.SerialOscDevice("m0000045", "grid")
+  device = pyserialoscdevice.SerialOscDeviceEndpoint("m0000045", "grid")
   device.start("localhost", 12235)
   serialosc.registerdevice(device)
   

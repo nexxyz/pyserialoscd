@@ -14,7 +14,7 @@ class OscClientWrapper:
     self.__client = SimpleUDPClient(self.targetip, self.targetport)  # Create client
   
   def send_message(self, address, *osc_arguments):
-    print("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, osc_arguments))
+    print("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, *osc_arguments))
     self.__client.send_message(address, osc_arguments)
 
 # -----------
@@ -28,12 +28,12 @@ class OscServerWrapper:
     self.dispatcher.set_default_handler(self.default_osc_handler, self)
   
   def default_osc_handler(self, source, *osc_arguments):
-    print("WARNING: Unhandled OSC message received. Source: {}, Content {}".format(source, osc_arguments))
+    print("WARNING: Unhandled OSC message received by {}. Source: {}, Content {}".format(self.friendlyname, source, osc_arguments))
 
-  def start(self, ip, port):
-    self.ip = map_localhost_to_ip4(ip)
+  def start(self, host, port):
+    self.host = map_localhost_to_ip4(host)
     self.port = port
-    self.__server = osc_server.BlockingOSCUDPServer((self.ip, self.port), self.dispatcher)
+    self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
     print("Starting OSC server {} on: {}".format(self.friendlyname, self.__server.server_address))
     self.__server_thread = Thread(target = self.__server.serve_forever)
     self.__server_thread.start()
@@ -43,11 +43,8 @@ class OscServerWrapper:
     self.__server.shutdown()
     self.__server_thread.join()
 
-def map_localhost_to_ip4(ip):
-    print("got ip {}".format(ip))
-    if (ip == "localhost"):
-        print("resolving to ipv4")
+def map_localhost_to_ip4(host):
+    if (host == "localhost"):
         return "127.0.0.1"
     else:
-        print("not resolving to ipv4")
-        return ip
+        return host

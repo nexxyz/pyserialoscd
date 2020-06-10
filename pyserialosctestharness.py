@@ -22,6 +22,9 @@ if __name__ == "__main__":
   testapplication_port = 15555
   serialosc_ip = "localhost"
   serialosc_port = 12002
+  device_ip = "localhost"
+  device_port = 12235
+
 
   # Test Application
   testapplication = pyserialoscutils.OscServerWrapper("testapplication")
@@ -30,4 +33,5 @@ if __name__ == "__main__":
   print("Press CTRL-C to stop")
   while True:
     pyserialoscutils.OscClientWrapper(serialosc_ip, serialosc_port).send_message("/serialosc/list", "localhost", 15555)
+    pyserialoscutils.OscClientWrapper(device_ip, device_port).send_message("/info", "localhost", 15555)
     time.sleep(1)
