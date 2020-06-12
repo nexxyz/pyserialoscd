@@ -28,9 +28,9 @@ After you have set everything up, go to that folder and run pyserialoscd by exec
 
     python pyserialoscd
 
-It assumes that all devices connected to a serial port are monome grids. If that is not the case, you can blacklist unwanted ports using the *serialportblacklist* parameter, e.g.:
+It assumes that all devices connected to a serial port are monome grids. If that is not the case, you can blacklist unwanted ports using the *nottheseserialports* parameter, e.g.:
 
-    python pyserialoscd --serialportblacklist COM10 COM12
+    python pyserialoscd --nottheseserialports COM10 COM12
 
 There is also a smilar *--onlytheseseriaports* parameter if you really only want to detect devices on specific ports.
 

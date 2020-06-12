@@ -11,7 +11,7 @@ import pyserialoscdevice
 # The main serialoscd listener
 # -----------
 class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
-  def __init__(self, onlytheseserialports = [], serialportblacklist = []):
+  def __init__(self, onlytheseserialports = [], nottheseserialports = []):
     super().__init__("serialoscmain")
     # Binding handling of incoming requests
     self.dispatcher.map("/serialosc/list", self.list_devices)
@@ -19,7 +19,7 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
     self.devices = []
     self.notifytargets = []
     self.onlytheseserialports = onlytheseserialports
-    self.serialportblacklist = serialportblacklist
+    self.nottheseserialports = nottheseserialports
 
   def list_devices(self, requestpath, targethost, targetport):
     logging.debug("list requested via {} for {}:{}".format(requestpath, targethost, targetport))
@@ -73,8 +73,8 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
 
     if (self.onlytheseserialports):
       currentports = list(set(currentports).intersection(self.onlytheseserialports))
-    elif (self.serialportblacklist):
-      currentports = list(set(currentports).difference(self.serialportblacklist))
+    elif (self.nottheseserialports):
+      currentports = list(set(currentports).difference(self.nottheseserialports))
 
     for serialport in currentports:
       if (serialport not in self.get_device_serialportlist()):
@@ -105,9 +105,9 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.description = "A simplified python implementation of serialoscd for running monomoe grids and homebrew/diy variants"
   parser.add_argument("--onlytheseserialports", nargs="*",
-      help="If set, all other serial ports than the ones listed here will be ignored")
-  parser.add_argument("--serialportblacklist", nargs="*", 
-      help="Serial ports that should be ignored - only works if 'onlyports' is not set")
+      help="If set, all other serial ports than the ones listed here will be ignored. Also disables blacklisting using nottheseserialports")
+  parser.add_argument("--nottheseserialports", nargs="*", 
+      help="Serial ports that should be ignored - only works if 'onlytheseserialports' is not set")
   parser.add_argument("--serialoscip",
       default="localhost", help="The ip to listen on")
   parser.add_argument("--serialoscport", default=12002, type=int,
@@ -121,7 +121,7 @@ if __name__ == "__main__":
   # Main server
   serialoschost = args.serialoscip
   serialoscport = args.serialoscport
-  serialosc = SerialOscMainEndpoint(args.onlytheseserialports, args.serialportblacklist)
+  serialosc = SerialOscMainEndpoint(args.onlytheseserialports, args.nottheseserialports)
   serialosc.detect_new_devices()
   serialosc.start(serialoschost, serialoscport)
 
