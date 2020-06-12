@@ -20,9 +20,13 @@ Then just check out this repo (you need to have git installed):
 
 Then go to that folder and run pyserialoscd by executing:
 
-    python pyserialoscd --serial <your serial port(s), e.g. "COM3" or "/dev/ttyUSB2">
+    python pyserialoscd
 
-You can also add more than one serial port, but this is untested. You can stop it using CTRL-C (not CTRL-Z).
+It assumes that all devices connected to a serial port are monome grids. If that is not the case, you can blacklist unwanted ports using the *serialportblacklist* parameter, e.g.:
+
+    python pyserialoscd --serialportblacklist COM10 COM12
+
+There is also a smilar *--onlytheseseriaports* parameter if you really only want to detect devices on specific ports.
 
 For help in case anything goes wrong, just call
 

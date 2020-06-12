@@ -8,7 +8,7 @@ import logging
 # Each device will be represented by one endpoint
 # -----------
 class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
-  def __init__(self, comport, messageprefix = "/monome", destinationhost = "localhost", destinationport = 12222):
+  def __init__(self, serialport, messageprefix = "/monome", destinationhost = "localhost", destinationport = 12222):
     super().__init__("unknown")
     self.messageprefix = messageprefix
     self.dispatcher.map("/sys/host", self.set_destination_host)
@@ -17,14 +17,16 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
     self.dispatcher.map("/sys/rotation", self.set_rotation)
     self.dispatcher.map("/info", self.get_info)
     self.dispatcher.map("/sys/info", self.get_info)
-
+    self.serialport = serialport
     self.__messagesender = pyserialoscsender.SerialOscDeviceMessageSender(self.messageprefix, destinationhost, destinationport)
-    self.__serialadapter = pyserialoscserialadapter.SerialAdapter(comport, self.__messagesender)
+    self.__serialadapter = pyserialoscserialadapter.SerialAdapter(serialport, self.__messagesender)
     self.id = "unknown"
     self.type = "unknown"
     self.size = [0, 0]
     self.rotation = 0
     
+  def is_alive(self):
+    return self.__serialadapter.is_alive()
 
   def start(self, ip, port):
     if (not self.__serialadapter.start()):
