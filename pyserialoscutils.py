@@ -14,7 +14,7 @@ class OscClientWrapper:
     self.__client = SimpleUDPClient(self.targetip, self.targetport)  # Create client
   
   def send_message(self, address, *osc_arguments):
-    print("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, *osc_arguments))
+    print("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, osc_arguments))
     self.__client.send_message(address, osc_arguments)
 
 # -----------
