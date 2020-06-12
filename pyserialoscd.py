@@ -113,7 +113,7 @@ if __name__ == "__main__":
   parser.add_argument("--serialoscport", default=12002, type=int,
       help="The UDP port that main serialosc server will use.")
   parser.add_argument("--loglevel", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-      default="WARN", help="The output log level, e.g. ERROR, WARNING, INFO, DEBUG")
+      default="INFO", help="The output log level, e.g. ERROR, WARNING, INFO, DEBUG")
   args = parser.parse_args()
 
   logging.getLogger().setLevel(args.loglevel)

@@ -250,8 +250,7 @@ class SerialAdapter:
         message = b'\x1A'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
-        print("Level array has {} entries".format(len(levelarray)))
-        for level in levelarray:
+        for level in levelarray[0:64]:
             message += int_to_byte(level)
         self.__serial.write(message)
 
@@ -260,7 +259,7 @@ class SerialAdapter:
         message = b'\x1B'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
-        for level in levelarray:
+        for level in levelarray[0:8]:
             message += int_to_byte(level)
         self.__serial.write(message)
 
@@ -269,7 +268,7 @@ class SerialAdapter:
         message = b'\x1C'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
-        for level in levelarray:
+        for level in levelarray[0:8]:
             message += int_to_byte(level)
         self.__serial.write(message)
 
