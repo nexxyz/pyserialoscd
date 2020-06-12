@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import logging
 import socket
 from pythonosc import dispatcher
@@ -5,6 +6,20 @@ from pythonosc import osc_server
 from pythonosc.udp_client import SimpleUDPClient
 from threading import Thread
 from contextlib import closing
+import pyserialoscutils
+import sys
+import os
+
+# chose an implementation, depending on os
+#~ if sys.platform == 'cli':
+#~ else:
+if os.name == 'nt':  # sys.platform == 'win32':
+    from serial.tools.list_ports_windows import comports
+elif os.name == 'posix':
+    from serial.tools.list_ports_posix import comports
+else:
+    raise ImportError("Sorry: no implementation for your platform ('{}') available".format(os.name))
+
 
 # -----------
 # To make it a bit easier to send osc messages
@@ -57,3 +72,10 @@ def find_free_port():
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+def list_ports():
+    portlist = []
+    for port in sorted(comports(include_links=True)):
+        portlist.append(port.device)
+        
+    return portlist

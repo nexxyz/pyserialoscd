@@ -29,10 +29,14 @@ class SerialListener:
 
     def messagereadloop(self):
         while(self.running == True):
-            while (self.__serial.in_waiting > 0): 
-                firstbyte = self.__serial.read()
-                self.dispatchmessage(firstbyte)
-            time.sleep(self.interval)
+            try:
+                while (self.__serial.in_waiting > 0): 
+                    firstbyte = self.__serial.read()
+                    self.dispatchmessage(firstbyte)
+                time.sleep(self.interval)
+            except (serial.serialutil.SerialException, AttributeError) as e:
+                logging.warn("Could not read from serial, Exception was {}".format(e))
+                self.running = False
 
     def dispatchmessage(self, firstbyte):
         # we're receiving device info
@@ -101,7 +105,7 @@ class SerialListener:
         logging.info("Device type is {}".format(actualtype))
 
         if (actualtype not in typelist[1:2]):
-            logging.debug("Warning!!! Device-Type probably not supported: {}. Only grids are supported for now".format(actualtype))
+            logging.warn("Device-Type probably not supported: {}. Only grids are supported for now".format(actualtype))
         
         # third is the number of devices/quads (e.g. 64 buttons per device/quad)
         devicecount = self.__serial.read()[0]
@@ -141,7 +145,7 @@ class SerialAdapter:
             self.__serial.flush()
             self.__listener.start()
         except serial.serialutil.SerialException as e:
-            logging.error("Could not open port {}, Exception was {}".format(self.serialport, e))
+            logging.warn("Could not open port {}, Exception was {}".format(self.serialport, e))
             return False
         
         return True
@@ -151,6 +155,9 @@ class SerialAdapter:
         self.__listener.stop()
         if (self.__serial.isOpen()):
             self.__serial.close()
+
+    def is_alive(self):
+        return self.__serial.isOpen() and self.__listener.running
 
     def get_device_metadata(self):
         # FIXME: Exception handling if it's not supported?
