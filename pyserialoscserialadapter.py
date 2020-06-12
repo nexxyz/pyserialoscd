@@ -61,13 +61,15 @@ class SerialListener:
             self.__serial.flush()
     
     def process_key_up(self):
-        x = self.__serial.read()[0]
-        y = self.__serial.read()[0]
+        payload = self.__serial.read(2)
+        x = payload[0]        
+        y = payload[1]
         self.__messagesender.send_grid_key(x, y, 0)
 
     def process_key_down(self):
-        x = self.__serial.read()[0]
-        y = self.__serial.read()[0]
+        payload = self.__serial.read(2)
+        x = payload[0]        
+        y = payload[1]       
         self.__messagesender.send_grid_key(x, y, 1)
 
     def process_device_id(self):
@@ -79,19 +81,22 @@ class SerialListener:
         # Maybe want to push this back to osc
 
     def process_grid_offset(self):
-        gridnumber = self.__serial.read()[0]
-        xoffset = self.__serial.read()[0]
-        yoffset = self.__serial.read()[0]
+        payload = self.__serial.read(3)
+        gridnumber = payload[0]
+        xoffset = payload[1]
+        yoffset = payload[2]
         return(gridnumber, xoffset, yoffset)
     
     def process_grid_size(self):
-        xsize = self.__serial.read()[0]
-        ysize = self.__serial.read()[0]
+        payload = self.__serial.read(2)
+        xsize = payload[0]
+        ysize = payload[1]
         return(xsize, ysize)
 
     def process_device_addr(self):
-        gridaddr = self.__serial.read()[0]
-        gridtype = self.__serial.read()[0]
+        payload = self.__serial.read(2)
+        gridaddr = payload[0]
+        gridtype = payload[1]
         return(gridaddr, gridtype)
 
     def process_device_firmware_version(self):
@@ -99,19 +104,18 @@ class SerialListener:
         return string_from_bytes(versionbytes)
 
     def read_device_info(self):
+        payload = self.__serial.read(2)
+
         # second is device type
         typelist = [None, "led-grid", "key-grid", "digital-out", "digital-in", "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
-        actualtype = typelist[self.__serial.read()[0]]
+        actualtype = typelist[payload[0]]
         logging.info("Device type is {}".format(actualtype))
 
         if (actualtype not in typelist[1:2]):
             logging.warn("Device-Type probably not supported: {}. Only grids are supported for now".format(actualtype))
         
         # third is the number of devices/quads (e.g. 64 buttons per device/quad)
-        devicecount = self.__serial.read()[0]
-        logging.debug("Device count is {}".format(devicecount))
-
-        # FIXME currently just for horizontal 8 led grids - let's make this work for others, too
+        devicecount = payload[1]
         logging.debug("Device count is {}".format(devicecount))
 
         return(actualtype, devicecount)
