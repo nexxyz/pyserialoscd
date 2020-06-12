@@ -69,9 +69,10 @@ if __name__ == "__main__":
   parser.description = "A simplified python implementation of serialoscd for running monomoe grids and homebrew/diy variants"
   parser.add_argument("--serial", required=True, nargs = '+',
       help="The serial ports where your device is connected, e.g. COM* on Windows or /dev/ttyUSB* on other systems")
-  parser.add_argument("--startport", required=True, type=int,
-      help="The serial ports where your device is connected, e.g. COM* on Windows or /dev/ttyUSB* on other systems")
-
+  parser.add_argument("--serialoscport", default=12002, type=int,
+      help="The UDP port that main serialosc server will use.")
+  parser.add_argument("--startport", default=15234, type=int,
+      help="The UDP port that the first device will open. Further devices will open the port above it (e.g. 15235)")
   parser.add_argument("--ip",
       default="localhost", help="The ip to listen on")
   parser.add_argument("--port",
@@ -84,7 +85,7 @@ if __name__ == "__main__":
 
   # Main server
   serialoschost = "localhost"
-  serialoscport = 12002
+  serialoscport = args.serialoscport
   serialosc = SerialOscMainEndpoint()
   serialosc.start(serialoschost, serialoscport)
 

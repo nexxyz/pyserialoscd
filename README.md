@@ -1,14 +1,31 @@
 # pyserialoscd
-A python-based simplified serialosc-like implementation
+A simplified, python-based serialoscd implementation
 
-I started to make this to use my neotrellis-monome by okeyron (see https://github.com/okyeron/neotrellis-monome). Due to the windows version of serialosc requiring an FTDI device to find it in the Windows registry, e.g. teensy-based devices that don't use FTDI drivers are not picked up by serialoscd. 
+## What it does
+Right now, the main grid functionalities are there. I have tested it with my neotrellis-monome using "Monome Home.maxpat". Almost everything works, only the "map test" using "vari-bright" is buggy. 
+
+It also supports, in theory, multiple devices. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8.
+
+## How to run it
+First you need pyserial and python-osc:
+
+    python -m pip install pyserial python-osc
+
+Then just check out this repo (you need to have git installed):
+
+    git clone https://github.com/nexxyz/pyserialoscd.git
+
+Then go to that folder and run pyserialoscd by executing:
+
+    python pyserialoscd --serial <your serial port, e.g. "COM3" or "/dev/ttyUSB2">
+
+You can also add more than one serial port, but this is untested. You can stop it using CTRL-C (not CTRL-Z).
+
+For help in case anything goes wrong, just call
+
+    python pyserialoscd --help
+
+## Why another serialoscd implementation?
+I started to make this to use my neotrellis-monome by okeyron (see https://github.com/okyeron/neotrellis-monome). Due to the windows version of serialosc requiring an FTDI device to find it in the Windows registry, e.g. teensy-based devices that don't use FTDI drivers are not picked up by serialoscd.
 
 And for fun.
-
-Currently the OSC receiving part is somewhat implemented, and I am working on the interaction on the serial side of things right now. Afterwards, I will put the two together, and also have autodetection of devices if possible, using a modified version of the com-port-listing from pyserial. There is already a stripped-down version of this in the code.
-
-To test it, you can run pyserialoscd and either press the "list" button in something like monome-home.maxpat, or you can run the pyserialtestharness, which will send a list request every second.
-
-As mentioned, current work is on the serial side of things. In this way, pyserialoscserialadapter works as both the implementation and the test file, so you can run it to get basic info on your device right now (you have to adapt the port name (currently it is hardcoded to COM10 which is my neotrellis-monome).
-
-I plan to have a queue of actions for the serial listener to perform, which the osc is placing actions into. I am not yet sure how the communication works in terms of device events/button presses. Let's see - something to figure out.

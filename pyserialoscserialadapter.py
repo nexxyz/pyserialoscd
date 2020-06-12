@@ -53,7 +53,7 @@ class SerialListener:
         elif (firstbyte == b"\x21"):
             self.process_key_down()
         else:
-            logging.debug("Unknown serial message received: {}. Ignoring by flushing rest. Might cause instability.".format(firstbyte))
+            logging.warn("Unknown serial message received: {}. Ignoring by flushing rest. Might cause instability.".format(firstbyte))
             self.__serial.flush()
     
     def process_key_up(self):

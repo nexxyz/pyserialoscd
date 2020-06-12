@@ -35,7 +35,7 @@ class OscServerWrapper:
     self.host = map_localhost_to_ip4(host)
     self.port = port
     self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
-    logging.info("Starting OSC server {} on: {}".format(self.friendlyname, self.__server.server_address))
+    logging.info("Starting OSC server {} on: {}:{}".format(self.friendlyname, host, port))
     self.__server_thread = Thread(target = self.__server.serve_forever)
     self.__server_thread.start()
       
