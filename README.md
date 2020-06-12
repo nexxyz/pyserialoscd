@@ -10,7 +10,7 @@ It also supports, in theory, multiple devices. I have not implemented anything a
 
 ## How to install it
 
-You need to download and install a recent version of [python](python.org/downloads/). 
+You need to download and install a recent version of [python](python.org/downloads/).
 
 Then you need pyserial and python-osc, which you can install using this command:
 
@@ -19,7 +19,7 @@ Then you need pyserial and python-osc, which you can install using this command:
 Then just check out this repo (you need to have git installed):
 
     git clone https://github.com/nexxyz/pyserialoscd.git
-    
+
 Or you could just [download this repo as a ZIP](https://github.com/nexxyz/pyserialoscd/archive/master.zip) and extract it.
 
 ## How to use it
