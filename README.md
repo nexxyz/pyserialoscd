@@ -8,17 +8,23 @@ Right now, the main grid functionalities are there. I have tested it with my neo
 
 It also supports, in theory, multiple devices. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8.
 
-## How to run it
+## How to install it
 
-First you need pyserial and python-osc:
+You need to download and install a recent version of [python](python.org/downloads/). 
+
+Then you need pyserial and python-osc, which you can install using this command:
 
     python -m pip install pyserial python-osc
 
 Then just check out this repo (you need to have git installed):
 
     git clone https://github.com/nexxyz/pyserialoscd.git
+    
+Or you could just [download this repo as a ZIP](https://github.com/nexxyz/pyserialoscd/archive/master.zip) and extract it.
 
-Then go to that folder and run pyserialoscd by executing:
+## How to use it
+
+After you have set everything up, go to that folder and run pyserialoscd by executing:
 
     python pyserialoscd
 
