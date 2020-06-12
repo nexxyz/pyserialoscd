@@ -1,25 +1,29 @@
 import serial
+import logging
 import time
 import pyserialoscsender
 import serial.serialutil
 from threading import Thread
 
+# -----------
+# This is processing stuff coming from the device
+# -----------
 class SerialListener:
     def __init__(self, serial, messagesender):
         super().__init__()
         self.__serial = serial
         self.running = False
-        self.interval = 0.05
+        self.interval = 0.02
         self.__messagesender = messagesender
 
     def start(self):
-        print("Start listening on port {}".format(self.__serial.port))
+        logging.debug("Start listening on port {}".format(self.__serial.port))
         self.running = True
         self.__process_thread = Thread(target = self.messagereadloop)
         self.__process_thread.start()
 
     def stop(self):
-        print("Stop listening on port {}".format(self.__serial.port))
+        logging.debug("Stop listening on port {}".format(self.__serial.port))
         self.running = False
         self.__process_thread.join()
 
@@ -27,65 +31,101 @@ class SerialListener:
         while(self.running == True):
             while (self.__serial.in_waiting > 0): 
                 firstbyte = self.__serial.read()
-                print("Got info from serial: {}".format(firstbyte))
                 self.dispatchmessage(firstbyte)
             time.sleep(self.interval)
 
     def dispatchmessage(self, firstbyte):
         # we're receiving device info
         if (firstbyte == b"\x00"):
-            self.send_device_info()
+            self.process_device_info()
         elif (firstbyte == b"\x01"):
-            self.send_device_id()
+            self.process_device_id()
+        elif (firstbyte == b"\x02"):
+            self.process_grid_offset()
+        elif (firstbyte == b"\x03"):
+            self.process_grid_size()
+        elif (firstbyte == b"\x04"):
+            self.process_device_addr()
+        elif (firstbyte == b"\x0F"):
+            self.process_device_firmware_version()
         elif (firstbyte == b"\x20"):
-            self.send_key_up()
+            self.process_key_up()
         elif (firstbyte == b"\x21"):
-            self.send_key_down()
+            self.process_key_down()
         else:
-            print("Unknown serial message received: {}".format(firstbyte))
+            logging.debug("Unknown serial message received: {}. Ignoring by flushing rest. Might cause instability.".format(firstbyte))
+            self.__serial.flush()
     
-    def send_key_up(self):
+    def process_key_up(self):
         x = self.__serial.read()[0]
         y = self.__serial.read()[0]
         self.__messagesender.send_grid_key(x, y, 0)
 
-    def send_key_down(self):
+    def process_key_down(self):
         x = self.__serial.read()[0]
         y = self.__serial.read()[0]
         self.__messagesender.send_grid_key(x, y, 1)
 
-    def send_device_id(self):
-        pass
+    def process_device_id(self):
+        self.read_device_id
+        # Maybe want to push this back to osc
 
-    def send_device_info(self):
-        pass
+    def process_device_info(self):
+        self.read_device_info
+        # Maybe want to push this back to osc
+
+    def process_grid_offset(self):
+        gridnumber = self.__serial.read()[0]
+        xoffset = self.__serial.read()[0]
+        yoffset = self.__serial.read()[0]
+        return(gridnumber, xoffset, yoffset)
+    
+    def process_grid_size(self):
+        xsize = self.__serial.read()[0]
+        ysize = self.__serial.read()[0]
+        return(xsize, ysize)
+
+    def process_device_addr(self):
+        gridaddr = self.__serial.read()[0]
+        gridtype = self.__serial.read()[0]
+        return(gridaddr, gridtype)
+
+    def process_device_firmware_version(self):
+        versionbytes = self.__serial.read(0)
+        return string_from_bytes(versionbytes)
 
     def read_device_info(self):
         # second is device type
         typelist = [None, "led-grid", "key-grid", "digital-out", "digital-in", "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
         actualtype = typelist[self.__serial.read()[0]]
-        print("Device type is {}".format(actualtype))
+        logging.info("Device type is {}".format(actualtype))
+
+        if (actualtype not in typelist[1:2]):
+            logging.debug("Warning!!! Device-Type probably not supported: {}. Only grids are supported for now".format(actualtype))
         
         # third is the number of devices/quads (e.g. 64 buttons per device/quad)
         devicecount = self.__serial.read()[0]
-        print("Device count is {}".format(devicecount))
+        logging.debug("Device count is {}".format(devicecount))
 
         # FIXME currently just for horizontal 8 led grids - let's make this work for others, too
-        devicesize = [devicecount * 8, 8]
-        print("Device size is {}".format(devicesize))
+        logging.debug("Device count is {}".format(devicecount))
 
-        return(actualtype, devicesize)
+        return(actualtype, devicecount)
 
     def read_device_id(self):
         readid = self.__serial.read(32)
         cleanedid = string_from_bytes(readid)
-        print("Cleaned ID is '{}'".format(cleanedid))
+        logging.debug("Cleaned ID is '{}'".format(cleanedid))
         return cleanedid
 
+    
+# -----------
+# This is triggering commands on the device
+# -----------
 class SerialAdapter:
     def __init__(self, serialport, messagesender):
         super().__init__()
-        print("Initializing serialport {}".format(serialport))
+        logging.debug("Initializing serial port {}".format(serialport))
         self.serialport = serialport
         self.__serial = serial.Serial()
         self.__serial.port = self.serialport
@@ -93,125 +133,155 @@ class SerialAdapter:
         self.__listener = SerialListener(self.__serial, messagesender)
 
     def start(self):
-        print("Opening adapter {}".format(self.serialport))
-        self.__serial.open()
+        logging.info("Opening serial port {}".format(self.serialport))
         
+        try:
+            self.__serial.open()
+            # Flush any remaining fragments
+            self.__serial.flush()
+            self.__listener.start()
+        except serial.serialutil.SerialException as e:
+            logging.error("Could not open port {}, Exception was {}".format(self.serialport, e))
+            return False
+        
+        return True
+
+    def stop(self):
+        logging.info("Closing serial port {}".format(self.serialport))
+        self.__listener.stop()
+        if (self.__serial.isOpen()):
+            self.__serial.close()
+
+    def get_device_metadata(self):
         # FIXME: Exception handling if it's not supported?
-        self.get_device_information()
+        self.request_device_information()
         self.__serial.read()
         device_info = self.__listener.read_device_info()
         
         # FIXME: Exception handling if it's not supported?
-        self.get_device_id()
+        self.request_device_id()
         self.__serial.read()
         device_id = self.__listener.read_device_id()
 
-        self.__listener.start()
-        return (device_id, device_info)
+        self.request_device_size()
+        self.__serial.read()
+        grid_size = self.__listener.process_grid_size()
 
-    def stop(self):
-        print("Closing adapter {}".format(self.serialport))
-        self.__listener.stop()
-        self.__serial.close()
+        return (device_id, device_info, grid_size)
 
     # device calls
-    def set_rotation(self, newrotationdegrees):
-        print("new rotation for device {} requested - {}".format(self.serialport, newrotationdegrees))
-
-    def send_info(self, targethost="", targetport=""):
-        print("info for device {} requested for {}:{}".format(self.serialport, targethost, targetport))
-
     def set_grid_led(self, x, y, newstate):
-        print("set grid led for device {} requested for {}:{} to state {}".format(self.serialport, x, y, newstate))
+        logging.debug("set grid led for device {} requested for {}:{} to state {}".format(self.serialport, x, y, newstate))
+        message = b""
         if (newstate):
-            self.__serial.write(b'\x11')
+            message += b'\x11'
         else:
-            self.__serial.write(b'\x10')
-        self.__serial.write(int_to_byte(x))
-        self.__serial.write(int_to_byte(y))
+            message += b'\x10'
+        message += int_to_byte(x)
+        message += int_to_byte(y)
+        self.__serial.write(message)
 
     def set_grid_led_all(self, newstate):
-        print("set all grid leds for device {} requested to state {}".format(self.serialport, newstate))
+        logging.debug("set all grid leds for device {} requested to state {}".format(self.serialport, newstate))
         if (newstate):
             self.__serial.write(b'\x13')
         else:
             self.__serial.write(b'\x12')
 
-    def set_grid_led_map(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        offsetx = osc_arguments[1]
-        offsety = osc_arguments[2]
-        statebitmap = osc_arguments[3:]
-        print("set all grid leds for device {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, statebitmap))
+    def set_grid_led_map(self, offsetx, offsety, bitmaparray):
+        logging.debug("set map grid leds for device {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, bitmaparray))
+        message = b""
+        message += b'\x14'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for bitmap in bitmaparray:
+            message += int_to_byte(bitmap)
+        self.__serial.write(message)
 
-    def set_grid_led_column(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        x = osc_arguments[1]
-        offsety = osc_arguments[2]
-        states = osc_arguments[3:]
-        print("set column grid leds for device {} requested for x {}, offsety {} to states {}".format(self.serialport, x, offsety, states))
+    def set_grid_led_row(self, offsetx, offsety, bitmaparray):
+        logging.debug("set row grid leds for device {} requested for offsetx {}, y {} to states {}".format(self.serialport, offsetx, offsety, bitmaparray))
+        message = b""
+        message += b'\x15'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for bitmap in bitmaparray:
+            message += int_to_byte(bitmap)
+        self.__serial.write(message)
 
-    def set_grid_led_row(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        offsetx = osc_arguments[1]
-        y = osc_arguments[2]
-        states = osc_arguments[3:]
-        print("set row grid leds for device {} requested for offsetx {}, y {} to states {}".format(self.serialport, offsetx, y, states))
+    def set_grid_led_column(self, offsetx, offsety, bitmaparray):
+        logging.debug("set column grid leds for device {} requested for x {}, offsety {} to states {}".format(self.serialport, offsetx, offsety, bitmaparray))
+        message = b""
+        message += b'\x16'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for bitmap in bitmaparray:
+            message += int_to_byte(bitmap)
+        self.__serial.write(message)
 
     def set_grid_intensity(self, newintensity):
-        print("set intensity for device {} requested to {}".format(self.id, newintensity))
+        logging.debug("set intensity for device {} requested to {}".format(self.serialport, newintensity))
+        message = b""
+        message += b'\x17'
+        message += int_to_byte(newintensity)
+        self.__serial.write(message)
 
     def set_grid_led_level(self, x, y, newlevel):
-        print("set grid led level for device {} requested for {}:{} to state {}".format(self.serialport, x, y, newlevel))
+        logging.debug("set grid led level for device {} requested for {}:{} to state {}".format(self.serialport, x, y, newlevel))
+        message = b""
+        message += b'\x18'
+        message += int_to_byte(x)
+        message += int_to_byte(y)
+        message += int_to_byte(newlevel)
+        self.__serial.write(message)
 
     def set_grid_led_all_level(self, newlevel):
-        print("set all grid led levels for device {} requested to state {}".format(self.serialport, newlevel))
+        logging.debug("set all grid led levels for device {} requested to state {}".format(self.serialport, newlevel))
+        message = b""
+        message += b'\x19'
+        message += int_to_byte(newlevel)
+        self.__serial.write(message)
 
-    def set_grid_led_map_level(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        offsetx = osc_arguments[1]
-        offsety = osc_arguments[2]
-        levelbitmap = osc_arguments[3:]
-        print("set all grid led levels for device {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, levelbitmap))
+    def set_grid_led_map_level(self, offsetx, offsety, levelarray):
+        logging.debug("set all grid led levels for device {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, levelarray))
+        message = b""
+        message += b'\x1A'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for level in levelarray:
+            message += int_to_byte(level)
+        self.__serial.write(message)
 
-    def set_grid_led_column_level(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        x = osc_arguments[1]
-        offsety = osc_arguments[2]
-        levels = osc_arguments[3:]
-        print("set columin grid led levels for device {} requested for x {}, offsety {} to state-bitmap {}".format(self.serialport, x, offsety, levels))
+    def set_grid_led_row_level(self, offsetx, offsety, levelarray):
+        logging.debug("set row grid led levels for device {} requested for offsetx {}, y {} to levels {}".format(self.serialport, offsetx, offsety, levelarray))
+        message = b""
+        message += b'\x1B'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for level in levelarray:
+            message += int_to_byte(level)
+        self.__serial.write(message)
 
-    def set_grid_led_row_level(self, *osc_arguments):
-        requestpath = osc_arguments[0]
-        offsetx = osc_arguments[1]
-        y = osc_arguments[2]
-        levels = osc_arguments[3:]
-        print("set row grid led levels for device {} requested for offsetx {}, y {} to levels {}".format(self.serialport, offsetx, y, levels))
+    def set_grid_led_column_level(self, offsetx, offsety, levelarray):
+        logging.debug("set column grid led levels for device {} requested for x {}, offsety {} to state-bitmap {}".format(self.serialport, offsetx, offsety, levelarray))
+        message = b""
+        message += b'\x1C'
+        message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
+        for level in levelarray:
+            message += int_to_byte(level)
+        self.__serial.write(message)
 
-    def set_grid_tilt_sensor(self, sensor, newactivestate):
-        print("set tilt sensor activestate for device {} requested for sensor {} to {}".format(self.serialport, sensor, newactivestate))
-
-    def set_ring_led(self, encoder, led, newlevel):
-        print("set ring led requested for device {} for encoder {}, led {} to level {}".format(self.serialport, encoder, led, newlevel))
-
-    def set_ring_led_all(self, encoder, newlevel):
-        print("set all ring leds requested for device {} for encoder {} to level {}".format(self.serialport, encoder, newlevel))
-
-    def set_ring_led_map(self, *osc_arguments):
-        encoder = osc_arguments[0]
-        newlevels = osc_arguments[1:]
-        print("set ring leds requested for device {} for encoder {} to levels {}".format(self.serialport, encoder, newlevels))
-
-    def set_ring_led_range(self, encoder, ledfrom, ledto, newlevel):
-        print("set all ring leds requested for device {} for encoder {}, leds {} to {}, to level {}".format(self.serialport, encoder, ledfrom, ledto, newlevel))
-
-    def get_device_information(self):
-        print("Requesting info for adapter {}".format(self.serialport))
+    def request_device_information(self):
+        logging.debug("Requesting info for adapter {}".format(self.serialport))
         self.__serial.write(b"\x00")
 
-    def get_device_id(self):
-        print("Requesting id for adapter {}".format(self.serialport))
+    def request_device_id(self):
+        logging.debug("Requesting id for adapter {}".format(self.serialport))
         self.__serial.write(b"\x01")
+
+    def request_device_size(self):
+        logging.debug("Requesting size for adapter {}".format(self.serialport))
+        self.__serial.write(b"\x05")
 
 def int_to_byte(integernumber):
     return bytes([integernumber])

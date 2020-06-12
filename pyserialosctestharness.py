@@ -31,7 +31,12 @@ if __name__ == "__main__":
   testapplication.start(testapplication_ip, testapplication_port)
   
   print("Press CTRL-C to stop")
-  while True:
-    pyserialoscutils.OscClientWrapper(serialosc_ip, serialosc_port).send_message("/serialosc/list", "localhost", 15555)
-    pyserialoscutils.OscClientWrapper(device_ip, device_port).send_message("/info", "localhost", 15555)
-    time.sleep(1)
+  pyserialoscutils.OscClientWrapper(serialosc_ip, serialosc_port).send_message("/serialosc/list", "localhost", 15555)
+  pyserialoscutils.OscClientWrapper(device_ip, device_port).send_message("/info", "localhost", 15555)
+  
+  while(True):
+    pyserialoscutils.OscClientWrapper(device_ip, device_port).send_message("/monome/grid/led/set", 5, 7, 1)
+    time.sleep(2)
+    pyserialoscutils.OscClientWrapper(device_ip, device_port).send_message("/monome/grid/led/set", 5, 7, 0)
+    time.sleep(2)
+
