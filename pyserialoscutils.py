@@ -1,8 +1,10 @@
 import logging
+import socket
 from pythonosc import dispatcher
 from pythonosc import osc_server
 from pythonosc.udp_client import SimpleUDPClient
 from threading import Thread
+from contextlib import closing
 
 # -----------
 # To make it a bit easier to send osc messages
@@ -49,3 +51,9 @@ def map_localhost_to_ip4(host):
         return "127.0.0.1"
     else:
         return host
+
+def find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]

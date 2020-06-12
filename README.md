@@ -3,7 +3,7 @@ A simplified, python-based serialoscd implementation
 
 
 ## What it does
-Right now, the main grid functionalities are there. I have tested it with my neotrellis-monome using "Monome Home.maxpat". Almost everything works, only the "map test" using "vari-bright" is buggy. 
+Right now, the main grid functionalities are there. I have tested it with my neotrellis-monome using "Monome Home.maxpat". Almost everything works, only the "map test" using "vari-bright" is buggy, and some functions that the neotrellis-monome did not implement are missing.
 
 It also supports, in theory, multiple devices. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8.
 
