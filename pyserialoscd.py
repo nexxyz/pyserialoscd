@@ -90,12 +90,10 @@ if __name__ == "__main__":
   serialosc.start(serialoschost, serialoscport)
 
   # Device
-  startport = args.startport
   for serialport in args.serial:
     device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport)
-    if (device.start("localhost", startport)):
+    if (device.start("localhost", pyserialoscutils.find_free_port())):
       serialosc.registerdevice(device)
-      startport += 1
     else:
       logging.error("Could not open device at {}, skipping".format(serialport))
 
