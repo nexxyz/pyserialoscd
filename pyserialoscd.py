@@ -73,7 +73,7 @@ if __name__ == "__main__":
   serialosc.start("localhost", 12002)
 
   # Device
-  device = pyserialoscdevice.SerialOscDeviceEndpoint("m0000045", "grid")
+  device = pyserialoscdevice.SerialOscDeviceEndpoint("COM3")
   device.start("localhost", 12235)
   serialosc.registerdevice(device)
   
