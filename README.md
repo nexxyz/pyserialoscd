@@ -19,7 +19,7 @@ Then just check out this repo (you need to have git installed):
 
 Then go to that folder and run pyserialoscd by executing:
 
-    python pyserialoscd --serial <your serial port, e.g. "COM3" or "/dev/ttyUSB2">
+    python pyserialoscd --serial <your serial port(s), e.g. "COM3" or "/dev/ttyUSB2">
 
 You can also add more than one serial port, but this is untested. You can stop it using CTRL-C (not CTRL-Z).
 
