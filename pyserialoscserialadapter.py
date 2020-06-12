@@ -203,26 +203,23 @@ class SerialAdapter:
         message = b'\x14'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
-        for bitmap in bitmaparray:
+        for bitmap in bitmaparray[0:8]:
             message += int_to_byte(bitmap)
         self.__serial.write(message)
 
-    def set_grid_led_row(self, offsetx, offsety, bitmaparray):
-        logging.debug("set row grid leds for device on {} requested for offsetx {}, y {} to states {}".format(self.serialport, offsetx, offsety, bitmaparray))
+    def set_grid_led_row(self, offsetx, offsety, bitmap):
+        logging.debug("set row grid leds for device on {} requested for offsetx {}, y {} to state-bitmap {}".format(self.serialport, offsetx, offsety, bitmap))
         message = b'\x15'
         message += int_to_byte(offsetx)
-        message += int_to_byte(offsety)
-        for bitmap in bitmaparray:
-            message += int_to_byte(bitmap)
+        message += int_to_byte(bitmap)
         self.__serial.write(message)
 
-    def set_grid_led_column(self, offsetx, offsety, bitmaparray):
-        logging.debug("set column grid leds for device on {} requested for x {}, offsety {} to states {}".format(self.serialport, offsetx, offsety, bitmaparray))
+    def set_grid_led_column(self, offsetx, offsety, bitmap):
+        logging.debug("set column grid leds for device on {} requested for x {}, offsety {} to states {}".format(self.serialport, offsetx, offsety, bitmap))
         message = b'\x16'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
-        for bitmap in bitmaparray:
-            message += int_to_byte(bitmap)
+        message += int_to_byte(bitmap)
         self.__serial.write(message)
 
     def set_grid_intensity(self, newintensity):

@@ -90,12 +90,12 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
     elif (messagepath.endswith("/led/row")):
       offsetx = osc_arguments[1]
       offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3:]
+      bitmaparray = osc_arguments[3]
       self.__serialadapter.set_grid_led_row(offsetx, offsety, bitmaparray)
     elif (messagepath.endswith("/led/col")):
       offsetx = osc_arguments[1]
       offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3:]
+      bitmaparray = osc_arguments[3]
       self.__serialadapter.set_grid_led_column(offsetx, offsety, bitmaparray)
     elif (messagepath.endswith("/led/intensity")):
       newlevel = osc_arguments[1]
