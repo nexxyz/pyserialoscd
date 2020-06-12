@@ -79,9 +79,9 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
     for serialport in currentports:
       if (serialport not in self.get_device_serialportlist()):
         # Device
-        device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport)
+        device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport, destinationport = pyserialoscutils.find_free_port())
         logging.warning("Detected new device: {}. Adding it.".format(serialport))
-        if (device.start("localhost", pyserialoscutils.find_free_port())):
+        if (device.start(self.host, pyserialoscutils.find_free_port())):
           serialosc.registerdevice(device)
         else:
           logging.error("Could not open device at {}, skipping".format(serialport))    
@@ -122,12 +122,11 @@ if __name__ == "__main__":
   serialoschost = args.serialoscip
   serialoscport = args.serialoscport
   serialosc = SerialOscMainEndpoint(args.onlytheseserialports, args.nottheseserialports)
-  serialosc.detect_new_devices()
   serialosc.start(serialoschost, serialoscport)
 
   print("pyserialoscd is now listening at {}:{}".format(serialoschost, serialoscport))
   print("Press CTRL-C to stop (if that does not work for some reason please kill python)")
   while True:
-    serialosc.remove_dead_devices()
     serialosc.detect_new_devices()
+    serialosc.remove_dead_devices()
     time.sleep(1)

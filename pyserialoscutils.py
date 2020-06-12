@@ -25,14 +25,14 @@ else:
 # To make it a bit easier to send osc messages
 # -----------
 class OscClientWrapper:
-  def __init__(self, targetip, targetport):
+  def __init__(self, targethost, targetport):
     super().__init__()
-    self.targetip = map_localhost_to_ip4(targetip)
+    self.targethost = map_localhost_to_ip4(targethost)
     self.targetport = targetport
-    self.__client = SimpleUDPClient(self.targetip, self.targetport)  # Create client
+    self.__client = SimpleUDPClient(self.targethost, self.targetport)  # Create client
   
   def send_message(self, address, *osc_arguments):
-    logging.debug("Sending message to {}:{} with path {} and data {}".format(self.targetip, self.targetport, address, osc_arguments))
+    logging.debug("Sending message to {}:{} with path {} and data {}".format(self.targethost, self.targetport, address, osc_arguments))
     self.__client.send_message(address, osc_arguments)
 
 # -----------
