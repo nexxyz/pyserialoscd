@@ -88,3 +88,17 @@ def list_serial_ports():
         portlist.append(port.device)
         
     return portlist
+
+# unused so far - might include in pyserialoscdevice later
+def rotate_coordinates(x, y, xsize, ysize, degrees):
+  if (degrees == 0):
+    return (x, y)
+  elif(degrees == 90):
+    return (y, x)
+  elif(degrees == 180):
+    return (xsize - x - 1, ysize - y - 1)
+  elif(degrees == 270):
+    return (ysize - y - 1, xsize - x - 1)
+  else:
+    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got {}. Ignoring rotation.".format(degrees))
+    return (x, y)
