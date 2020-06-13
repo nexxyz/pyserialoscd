@@ -4,9 +4,9 @@ A simplified, python-based serialoscd implementation
 
 ## What it does
 
-Right now, the main grid functionalities are there. I have tested it with my neotrellis-monome using "Monome Home.maxpat". It can be used as a replacement for serialoscd, as long as you don't need any of the more low-level functionalities (such as setting a device ID).
+Right now, the main grid functionalities are there. I have tested it with my neotrellis-monome using "Monome Home.maxpat". It can be used as a replacement for serialoscd, as long as you don't need any of the more low-level functionalities (such as setting a device ID). It currently allows to set and stores rotation information, but does not do anything with that info.
 
-It also supports multiple devices, but this has not been tested by me. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8, and it currently allows to set and stores rotation information, but does not do anything with that info.
+It also supports multiple devices, but this has not been tested by me. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8.
 
 ## How to install it
 
