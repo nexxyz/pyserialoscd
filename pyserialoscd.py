@@ -2,6 +2,7 @@ import signal
 import logging
 import argparse
 import time
+import sys
 
 from pythonosc import dispatcher
 import pyserialoscutils
@@ -60,7 +61,7 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
 
   def remove_dead_devices(self):
     for device in self.devices:
-      if (device.serialport not in pyserialoscutils.list_ports()):
+      if (device.serialport not in pyserialoscutils.list_serial_ports()):
         logging.warning("Device no longer listed as serial port: {}. Removing it".format(device.serialport))
         self.unregisterdevice(device)
         device.stop()
@@ -69,7 +70,7 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
         self.unregisterdevice(device)
 
   def detect_new_devices(self):
-    currentports = pyserialoscutils.list_ports()
+    currentports = pyserialoscutils.list_serial_ports()
 
     if (self.onlytheseserialports):
       currentports = list(set(currentports).intersection(self.onlytheseserialports))
@@ -80,11 +81,14 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
       if (serialport not in self.get_device_serialportlist()):
         # Device
         device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport, destinationport = pyserialoscutils.find_free_port())
-        logging.warning("Detected new device: {}. Adding it.".format(serialport))
-        if (device.start(self.host, pyserialoscutils.find_free_port())):
+        logging.info("Detected new device: {}. Adding it. If it has just been plugged in, please wait a few seconds for it to initialize before pressing any buttons.".format(serialport))
+        
+        devicehost = self.host
+        deviceport = pyserialoscutils.find_free_port()
+        if (device.start(devicehost, deviceport)):
           serialosc.registerdevice(device)
         else:
-          logging.error("Could not open device at {}, skipping".format(serialport))    
+          logging.error("Could not open device endpoint {}:{} at serialport {}, skipping".format(devicehost, deviceport, serialport))    
 
 # -----------
 # Cleanup
@@ -108,8 +112,8 @@ if __name__ == "__main__":
       help="If set, all other serial ports than the ones listed here will be ignored. Also disables blacklisting using nottheseserialports")
   parser.add_argument("--nottheseserialports", nargs="*", 
       help="Serial ports that should be ignored - only works if 'onlytheseserialports' is not set")
-  parser.add_argument("--serialoscip",
-      default="localhost", help="The ip to listen on")
+  parser.add_argument("--serialoschost",
+      default="localhost", help="The ip/hostname for the main serialosc server to listen on")
   parser.add_argument("--serialoscport", default=12002, type=int,
       help="The UDP port that main serialosc server will use.")
   parser.add_argument("--loglevel", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -119,10 +123,14 @@ if __name__ == "__main__":
   logging.getLogger().setLevel(args.loglevel)
 
   # Main server
-  serialoschost = args.serialoscip
+  serialoschost = args.serialoschost
   serialoscport = args.serialoscport
+
   serialosc = SerialOscMainEndpoint(args.onlytheseserialports, args.nottheseserialports)
-  serialosc.start(serialoschost, serialoscport)
+  if (not serialosc.start(serialoschost, serialoscport)):
+    logging.error("Could not start serialosc main server at {}:{}.\nMaybe the original serialoscd is running?\nYou can also specify a specific port using --serialoscport".format(serialoschost, serialoscport))
+    sys.exit(1)
+
 
   print("pyserialoscd is now listening at {}:{}".format(serialoschost, serialoscport))
   print("Press CTRL-C to stop (if that does not work for some reason please kill python)")

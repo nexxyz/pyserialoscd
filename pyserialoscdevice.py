@@ -32,8 +32,7 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
     if (not self.__serialadapter.start()):
       return False
     self.update_device_metadata()
-    super().start(ip, port)
-    return True
+    return super().start(ip, port)
       
   def stop(self):
     self.__serialadapter.stop()

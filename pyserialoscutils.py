@@ -44,6 +44,7 @@ class OscServerWrapper:
     self.friendlyname = friendlyname
     self.dispatcher = dispatcher.Dispatcher()
     self.dispatcher.set_default_handler(self.default_osc_handler, self)
+    self.running = False
   
   def default_osc_handler(self, source, *osc_arguments):
     logging.warn("WARNING: Unhandled OSC message received by {}. Source: {}, Content {}".format(self.friendlyname, source, osc_arguments))
@@ -51,15 +52,23 @@ class OscServerWrapper:
   def start(self, host, port):
     self.host = map_localhost_to_ip4(host)
     self.port = port
-    self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
+
+    try:
+      self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
+    except OSError as e:
+      return False
+
     logging.info("Starting OSC server {} on: {}:{}".format(self.friendlyname, host, port))
     self.__server_thread = Thread(target = self.__server.serve_forever)
     self.__server_thread.start()
-      
+    self.running = True
+    return True  
+    
   def stop(self):
     logging.info("Stopping OSC server: {}".format(self.friendlyname))
-    self.__server.shutdown()
-    self.__server_thread.join()
+    if (self.running):
+      self.__server.shutdown()
+      self.__server_thread.join()
 
 def map_localhost_to_ip4(host):
     if (host == "localhost"):
@@ -68,12 +77,12 @@ def map_localhost_to_ip4(host):
         return host
 
 def find_free_port():
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as s:
         s.bind(('', 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
-def list_ports():
+def list_serial_ports():
     portlist = []
     for port in sorted(comports(include_links=True)):
         portlist.append(port.device)
