@@ -211,6 +211,7 @@ class SerialAdapter:
         logging.debug("set row grid leds for device on {} requested for offsetx {}, y {} to state-bitmap {}".format(self.serialport, offsetx, offsety, bitmap))
         message = b'\x15'
         message += int_to_byte(offsetx)
+        message += int_to_byte(offsety)
         message += int_to_byte(bitmap)
         self.__serial.write(message)
 
