@@ -8,6 +8,8 @@ Right now, the main grid functionalities are there. I have tested it with my neo
 
 It also supports multiple devices, but this has not been tested by me. I have not implemented anything around tilt, arc or other devices than grids (yet - if there's demand I might do that). I am sure if it works with grids that are not 16x8.
 
+**Note:** It seems, at least on Windows, the /grid/map/level (and possibly row & col) OSC command (when tested with monome home's vari-bright map-test) does not behave at expected with okeyron's original firmware. Please use [my modified firmware](https://github.com/nexxyz/neotrellis_monome_teensy) instead. It also adds variable intensity for mono-bright applications using the /grid/intensity OSC command.
+
 ## How to install it
 
 You need to download and install a recent version of [python](python.org/downloads/).
