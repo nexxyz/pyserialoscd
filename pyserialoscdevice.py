@@ -70,6 +70,7 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
   # receiving messages for the device
   def default_osc_handler(self, source, *osc_arguments):
     messagepath = osc_arguments[0]
+    parameters = osc_arguments[1:]
     if (not messagepath.startswith(self.messageprefix + "/")):
       logging.debug("Message path {} does not fit set message prefix {}. Ignoring it".format(messagepath, self.messageprefix))
       return
@@ -77,49 +78,51 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
       newstate = osc_arguments[1]
       self.__serialadapter.set_grid_led_all(newstate)
     elif (messagepath.endswith("/led/set")):
-      x = osc_arguments[1]
-      y = osc_arguments[2]
-      newstate = osc_arguments[3]
+      x = parameters[0]
+      y = parameters[1]
+      newstate = parameters[2]
       self.__serialadapter.set_grid_led(x, y, newstate)
     elif (messagepath.endswith("/led/map")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3:]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      bitmaparray = parameters[2:]
       self.__serialadapter.set_grid_led_map(offsetx, offsety, bitmaparray)
     elif (messagepath.endswith("/led/row")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      bitmaparray = parameters[2]
       self.__serialadapter.set_grid_led_row(offsetx, offsety, bitmaparray)
     elif (messagepath.endswith("/led/col")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      bitmaparray = parameters[2]
       self.__serialadapter.set_grid_led_column(offsetx, offsety, bitmaparray)
     elif (messagepath.endswith("/led/intensity")):
-      newlevel = osc_arguments[1]
+      newlevel = parameters[0]
       self.__serialadapter.set_grid_intensity(newlevel)
     elif (messagepath.endswith("/led/level/set")):
-      x = osc_arguments[1]
-      y = osc_arguments[2]
-      newlevel  = osc_arguments[3]
+      x = parameters[0]
+      y = parameters[1]
+      newlevel  = parameters[2]
       self.__serialadapter.set_grid_led_level(x, y, newlevel)
     elif (messagepath.endswith("/led/level/all")):
-      newlevel  = osc_arguments[1]
+      newlevel  = parameters[0]
       self.__serialadapter.set_grid_led_level(x, y, newlevel)
     elif (messagepath.endswith("/led/level/map")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      levelarray = osc_arguments[3:]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      levelarray = parameters[2:]
       self.__serialadapter.set_grid_led_map_level(offsetx, offsety, levelarray)
     elif (messagepath.endswith("/led/level/row")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3:]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      bitmaparray = parameters[2:]
       self.__serialadapter.set_grid_led_row_level(offsetx, offsety, levelarray)
     elif (messagepath.endswith("/led/level/col")):
-      offsetx = osc_arguments[1]
-      offsety = osc_arguments[2]
-      bitmaparray = osc_arguments[3:]
+      offsetx = parameters[0]
+      offsety = parameters[1]
+      bitmaparray = parameters[2:]
       self.__serialadapter.set_grid_led_column_level(offsetx, offsety, levelarray)
+    else:
+      logging.warn("Got unknown OSC device request {} with parameters: {}".format(messagepath, parameters))
     
