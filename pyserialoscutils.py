@@ -94,11 +94,23 @@ def rotate_coordinates(x, y, xsize, ysize, degrees):
   if (degrees == 0):
     return (x, y)
   elif(degrees == 90):
-    return (y, x)
+    return (y, xsize - x - 1)
   elif(degrees == 180):
     return (xsize - x - 1, ysize - y - 1)
   elif(degrees == 270):
-    return (ysize - y - 1, xsize - x - 1)
+    return (ysize - y - 1, x)
   else:
     logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got {}. Ignoring rotation.".format(degrees))
     return (x, y)
+
+def rotate_map(map, degrees):
+  returnmap = map
+  if (not degrees % 90 == 0):
+    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got {}. Ignoring rotation.".format(degrees))
+    return
+  
+  rotatetimes = int(degrees / 90)
+  for _ in range(rotatetimes):
+    returnmap = zip(*returnmap[::-1])
+  
+  return returnmap
