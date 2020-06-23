@@ -12,4 +12,4 @@ install:
   - pip install pyserial python-osc
 # command to run tests
 script:
-  - pytest
+  - pytest pyserialosctest.py
