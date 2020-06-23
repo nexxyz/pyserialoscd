@@ -56,6 +56,7 @@ class OscServerWrapper:
     try:
       self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
     except OSError as e:
+      logging.warn("WARNING: Error starting OSCUDPServer {}: {}.".format(self.friendlyname, e))
       return False
 
     logging.info("Starting OSC server {} on: {}:{}".format(self.friendlyname, host, port))
