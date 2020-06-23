@@ -12,7 +12,7 @@ It also supports multiple devices, but this has not been tested by me. I have no
 
 ## How to install it
 
-You need to download and install a recent version of [python](python.org/downloads/).
+You need to download and install a recent version of [python](python.org/downloads/), at least version 3.5.
 
 Then you need pyserial and python-osc, which you can install using this command:
 
