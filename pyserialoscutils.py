@@ -18,7 +18,7 @@ if os.name == 'nt':  # sys.platform == 'win32':
 elif os.name == 'posix':
     from serial.tools.list_ports_posix import comports
 else:
-    raise ImportError("Sorry: no implementation for your platform ('{}') available".format(os.name))
+    raise ImportError("Sorry: no implementation for your platform ('%s') available", os.name)
 
 
 # -----------
@@ -32,7 +32,7 @@ class OscClientWrapper:
     self.__client = SimpleUDPClient(self.targethost, self.targetport)  # Create client
   
   def send_message(self, address, *osc_arguments):
-    logging.debug("Sending message to {}:{} with path {} and data {}".format(self.targethost, self.targetport, address, osc_arguments))
+    logging.debug("Sending message to %s:%s with path %s and data %s", self.targethost, self.targetport, address, osc_arguments)
     self.__client.send_message(address, osc_arguments)
 
 # -----------
@@ -47,7 +47,7 @@ class OscServerWrapper:
     self.running = False
   
   def default_osc_handler(self, source, *osc_arguments):
-    logging.warn("WARNING: Unhandled OSC message received by {}. Source: {}, Content {}".format(self.friendlyname, source, osc_arguments))
+    logging.warn("WARNING: Unhandled OSC message received by %s. Source: %s, Content %s", self.friendlyname, source, osc_arguments)
 
   def start(self, host, port):
     self.host = map_localhost_to_ip4(host)
@@ -56,17 +56,17 @@ class OscServerWrapper:
     try:
       self.__server = osc_server.BlockingOSCUDPServer((self.host, self.port), self.dispatcher)
     except OSError as e:
-      logging.warn("WARNING: Error starting OSCUDPServer {}: {}.".format(self.friendlyname, e))
+      logging.warn("WARNING: Error starting OSCUDPServer %s: %s.", self.friendlyname, e)
       return False
 
-    logging.info("Starting OSC server {} on: {}:{}".format(self.friendlyname, host, port))
+    logging.info("Starting OSC server %s on: %s:%s", self.friendlyname, host, port)
     self.__server_thread = Thread(target = self.__server.serve_forever)
     self.__server_thread.start()
     self.running = True
     return True  
     
   def stop(self):
-    logging.info("Stopping OSC server: {}".format(self.friendlyname))
+    logging.info("Stopping OSC server: %s", self.friendlyname)
     if (self.running):
       self.__server.shutdown()
       self.__server_thread.join()
@@ -101,13 +101,13 @@ def rotate_coordinates(x, y, xsize, ysize, degrees):
   elif(degrees == 270):
     return (ysize - y - 1, x)
   else:
-    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got {}. Ignoring rotation.".format(degrees))
+    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got %s. Ignoring rotation.", degrees)
     return (x, y)
 
 def rotate_map(map, degrees):
   returnmap = map
   if (not degrees % 90 == 0):
-    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got {}. Ignoring rotation.".format(degrees))
+    logging.error("Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got %s. Ignoring rotation.", degrees)
     return
   
   rotatetimes = int(degrees / 90)
