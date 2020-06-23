@@ -47,24 +47,24 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
 
   # receiving messages for the endpoint
   def set_destination_port(self, requestpath, newport):
-    logging.debug("new destination port for device {} requested - {}".format(self.id, newport))
+    logging.debug("new destination port for device %s requested - %s", self.id, newport)
     self.__messagesender.destinationport = newport
 
   def set_destination_host(self, requestpath, newhost):
-    logging.debug("new host for device {} requested - {}".format(self.id, newhost))
+    logging.debug("new host for device %s requested - %s", self.id, newhost)
     self.__messagesender.destinationhost = newhost
 
   def set_message_prefix(self, requestpath, newmessageprefix):
-    logging.debug("new message prefix for device {} requested - {}".format(self.id, newmessageprefix))
+    logging.debug("new message prefix for device %s requested - %s", self.id, newmessageprefix)
     self.messageprefix = newmessageprefix
     self.__messagesender.messageprefix = newmessageprefix
     
   def set_rotation(self, requestpath, newrotation):
-    logging.debug("new rotation for device {} requested - {}".format(self.id, newrotation))
+    logging.debug("new rotation for device %s requested - %s", self.id, newrotation)
     self.rotation = newrotation
 
   def get_info(self, requestpath, destinationhost = "", destinationport = ""):
-    logging.debug("info requested for device {} to targethost {} and targetport {}".format(self.id, destinationhost, destinationport))
+    logging.debug("info requested for device %s to targethost %s and targetport %s", self.id, destinationhost, destinationport)
     self.__messagesender.send_info(self.id, self.size[0], self.size[1], self.rotation, destinationhost, destinationport)
   
   # receiving messages for the device
@@ -72,7 +72,7 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
     messagepath = osc_arguments[0]
     parameters = osc_arguments[1:]
     if (not messagepath.startswith(self.messageprefix + "/")):
-      logging.debug("Message path {} does not fit set message prefix {}. Ignoring it".format(messagepath, self.messageprefix))
+      logging.debug("Message path %s does not fit set message prefix %s. Ignoring it", messagepath, self.messageprefix)
       return
     elif (messagepath.endswith("/led/all")):
       newstate = osc_arguments[1]
@@ -124,5 +124,5 @@ class SerialOscDeviceEndpoint(pyserialoscutils.OscServerWrapper):
       bitmaparray = parameters[2:]
       self.__serialadapter.set_grid_led_column_level(offsetx, offsety, levelarray)
     else:
-      logging.warn("Got unknown OSC device request {} with parameters: {}".format(messagepath, parameters))
+      logging.warn("Got unknown OSC device request %s with parameters: %s", messagepath, parameters)
     

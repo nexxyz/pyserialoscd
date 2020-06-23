@@ -17,13 +17,13 @@ class SerialListener:
         self.__messagesender = messagesender
 
     def start(self):
-        logging.debug("Start listening on port {}".format(self.__serial.port))
+        logging.debug("Start listening on port %s", self.__serial.port)
         self.running = True
         self.__process_thread = Thread(target = self.messagereadloop)
         self.__process_thread.start()
 
     def stop(self):
-        logging.debug("Stop listening on port {}".format(self.__serial.port))
+        logging.debug("Stop listening on port %s", self.__serial.port)
         self.running = False
         self.__process_thread.join()
 
@@ -35,7 +35,7 @@ class SerialListener:
                     self.dispatchmessage(firstbyte)
                 time.sleep(self.interval)
             except (serial.serialutil.SerialException, AttributeError) as e:
-                logging.warn("Could not read from serial, Exception was {}".format(e))
+                logging.warn("Could not read from serial, Exception was %s", e)
                 self.running = False
 
     def dispatchmessage(self, firstbyte):
@@ -57,7 +57,7 @@ class SerialListener:
         elif (firstbyte == b"\x21"):
             self.process_key_down()
         else:
-            logging.warn("Unknown serial message received: {}. Ignoring by flushing rest. Might cause instability.".format(firstbyte))
+            logging.warn("Unknown serial message received: %s. Ignoring by flushing rest. Might cause instability.", firstbyte)
             self.__serial.flush()
     
     def process_key_up(self):
@@ -109,21 +109,21 @@ class SerialListener:
         # second is device type
         typelist = [None, "led-grid", "key-grid", "digital-out", "digital-in", "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
         actualtype = typelist[payload[0]]
-        logging.info("Device type is {}".format(actualtype))
+        logging.info("Device type is %s", actualtype)
 
         if (actualtype not in typelist[1:2]):
-            logging.warn("Device-Type probably not supported: {}. Only grids are supported for now".format(actualtype))
+            logging.warn("Device-Type probably not supported: %s. Only grids are supported for now", actualtype)
         
         # third is the number of devices/quads (e.g. 64 buttons per device/quad)
         devicecount = payload[1]
-        logging.debug("Device count is {}".format(devicecount))
+        logging.debug("Device count is %s", devicecount)
 
         return(actualtype, devicecount)
 
     def read_device_id(self):
         readid = self.__serial.read(32)
         cleanedid = string_from_bytes(readid)
-        logging.debug("Cleaned ID is '{}'".format(cleanedid))
+        logging.debug("Cleaned ID is '%s'", cleanedid)
         return cleanedid
 
     
@@ -133,7 +133,7 @@ class SerialListener:
 class SerialAdapter:
     def __init__(self, serialport, messagesender):
         super().__init__()
-        logging.debug("Initializing serial port {}".format(serialport))
+        logging.debug("Initializing serial port %s", serialport)
         self.serialport = serialport
         self.__serial = serial.Serial()
         self.__serial.port = self.serialport
@@ -141,7 +141,7 @@ class SerialAdapter:
         self.__listener = SerialListener(self.__serial, messagesender)
 
     def start(self):
-        logging.info("Opening serial port {}".format(self.serialport))
+        logging.info("Opening serial port %s", self.serialport)
         
         try:
             self.__serial.open()
@@ -149,13 +149,13 @@ class SerialAdapter:
             self.__serial.flush()
             self.__listener.start()
         except serial.serialutil.SerialException as e:
-            logging.warn("Could not open port {}, Exception was {}".format(self.serialport, e))
+            logging.warn("Could not open port %s, Exception was %s", self.serialport, e)
             return False
         
         return True
 
     def stop(self):
-        logging.info("Closing serial port {}".format(self.serialport))
+        logging.info("Closing serial port %s", self.serialport)
         self.__listener.stop()
         if (self.__serial.isOpen()):
             self.__serial.close()
@@ -182,7 +182,7 @@ class SerialAdapter:
 
     # device calls
     def set_grid_led(self, x, y, newstate):
-        logging.debug("set grid led for device on {} requested for {}:{} to state {}".format(self.serialport, x, y, newstate))
+        logging.debug("set grid led for device on %s requested for %s:%s to state %s", self.serialport, x, y, newstate)
         if (newstate):
             message = b'\x11'
         else:
@@ -192,14 +192,14 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_all(self, newstate):
-        logging.debug("set all grid leds for device on {} requested to state {}".format(self.serialport, newstate))
+        logging.debug("set all grid leds for device on %s requested to state %s", self.serialport, newstate)
         if (newstate):
             self.__serial.write(b'\x13')
         else:
             self.__serial.write(b'\x12')
 
     def set_grid_led_map(self, offsetx, offsety, bitmaparray):
-        logging.debug("set map grid leds for device on {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, bitmaparray))
+        logging.debug("set map grid leds for device on %s requested for offset %s, %s to state-bitmap %s", self.serialport, offsetx, offsety, bitmaparray)
         message = b'\x14'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -208,7 +208,7 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_row(self, offsetx, offsety, bitmap):
-        logging.debug("set row grid leds for device on {} requested for offsetx {}, y {} to state-bitmap {}".format(self.serialport, offsetx, offsety, bitmap))
+        logging.debug("set row grid leds for device on %s requested for offsetx %s, y %s to state-bitmap %s", self.serialport, offsetx, offsety, bitmap)
         message = b'\x15'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -216,7 +216,7 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_column(self, offsetx, offsety, bitmap):
-        logging.debug("set column grid leds for device on {} requested for x {}, offsety {} to states {}".format(self.serialport, offsetx, offsety, bitmap))
+        logging.debug("set column grid leds for device on %s requested for x %s, offsety %s to states %s", self.serialport, offsetx, offsety, bitmap)
         message = b'\x16'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -224,13 +224,13 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_intensity(self, newintensity):
-        logging.debug("set intensity for device on {} requested to {}".format(self.serialport, newintensity))
+        logging.debug("set intensity for device on %s requested to %s", self.serialport, newintensity)
         message = b'\x17'
         message += int_to_byte(newintensity)
         self.__serial.write(message)
 
     def set_grid_led_level(self, x, y, newlevel):
-        logging.debug("set grid led level for device on {} requested for {}:{} to state {}".format(self.serialport, x, y, newlevel))
+        logging.debug("set grid led level for device on %s requested for %s:%s to state %s", self.serialport, x, y, newlevel)
         message = b'\x18'
         message += int_to_byte(x)
         message += int_to_byte(y)
@@ -238,13 +238,13 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_all_level(self, newlevel):
-        logging.debug("set all grid led levels for device on {} requested to state {}".format(self.serialport, newlevel))
+        logging.debug("set all grid led levels for device on %s requested to state %s", self.serialport, newlevel)
         message = b'\x19'
         message += int_to_byte(newlevel)
         self.__serial.write(message)
 
     def set_grid_led_map_level(self, offsetx, offsety, levelarray):
-        logging.debug("set all grid led levels for device on {} requested for offset {}, {} to state-bitmap {}".format(self.serialport, offsetx, offsety, levelarray))
+        logging.debug("set all grid led levels for device on %s requested for offset %s, %s to state-bitmap %s", self.serialport, offsetx, offsety, levelarray)
         message = b'\x1A'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -253,7 +253,7 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_row_level(self, offsetx, offsety, levelarray):
-        logging.debug("set row grid led levels for device on {} requested for offsetx {}, y {} to levels {}".format(self.serialport, offsetx, offsety, levelarray))
+        logging.debug("set row grid led levels for device on %s requested for offsetx %s, y %s to levels %s", self.serialport, offsetx, offsety, levelarray)
         message = b'\x1B'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -262,7 +262,7 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def set_grid_led_column_level(self, offsetx, offsety, levelarray):
-        logging.debug("set column grid led levels for device on {} requested for x {}, offsety {} to state-bitmap {}".format(self.serialport, offsetx, offsety, levelarray))
+        logging.debug("set column grid led levels for device on %s requested for x %s, offsety %s to state-bitmap %s", self.serialport, offsetx, offsety, levelarray)
         message = b'\x1C'
         message += int_to_byte(offsetx)
         message += int_to_byte(offsety)
@@ -271,15 +271,15 @@ class SerialAdapter:
         self.__serial.write(message)
 
     def request_device_information(self):
-        logging.debug("Requesting info for device on {}".format(self.serialport))
+        logging.debug("Requesting info for device on %s", self.serialport)
         self.__serial.write(b"\x00")
 
     def request_device_id(self):
-        logging.debug("Requesting id for device on {}".format(self.serialport))
+        logging.debug("Requesting id for device on %s", self.serialport)
         self.__serial.write(b"\x01")
 
     def request_device_size(self):
-        logging.debug("Requesting size for adapter {}".format(self.serialport))
+        logging.debug("Requesting size for adapter %s", self.serialport)
         self.__serial.write(b"\x05")
 
 def int_to_byte(integernumber):

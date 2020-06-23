@@ -23,24 +23,24 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
     self.nottheseserialports = nottheseserialports
 
   def list_devices(self, requestpath, targethost, targetport):
-    logging.debug("list requested via {} for {}:{}".format(requestpath, targethost, targetport))
+    logging.debug("list requested via %s for %s:%s", requestpath, targethost, targetport)
 
     for device in self.devices:
       pyserialoscutils.OscClientWrapper(targethost, targetport).send_message("/serialosc/device", device.id, device.type, device.port)
 
   def notify_next_change(self, requestpath, targethost, targetport):
-    logging.debug("notification for next device requested via {} for {}:{}".format(requestpath, targethost, targetport))
+    logging.debug("notification for next device requested via %s for %s:%s", requestpath, targethost, targetport)
     self.notifytargets.append((targethost, targetport))
 
   def registerdevice(self, device):
-    logging.debug("Registering device {}".format(device.id))
+    logging.debug("Registering device %s", device.id)
     self.devices.append(device)
     for notifytarget in self.notifytargets:
       pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/add", device.id)
     self.notifytargets = []
   
   def unregisterdevice(self, device):
-    logging.debug("Unregistering device {}".format(device.id))
+    logging.debug("Unregistering device %s", device.id)
     self.devices.remove(device)
     for notifytarget in self.notifytargets:
       pyserialoscutils.OscClientWrapper(notifytarget[0], notifytarget[1]).send_message("/serialosc/remove", device.id)
@@ -62,11 +62,11 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
   def remove_dead_devices(self):
     for device in self.devices:
       if (device.serialport not in pyserialoscutils.list_serial_ports()):
-        logging.warning("Device no longer listed as serial port: {}. Removing it".format(device.serialport))
+        logging.warning("Device no longer listed as serial port: %s. Removing it", device.serialport)
         self.unregisterdevice(device)
         device.stop()
       elif (not device.is_alive()):
-        logging.warning("Detected dead device: {}. Removing it.".format(device.friendlyname))
+        logging.warning("Detected dead device: %s. Removing it.", device.friendlyname)
         self.unregisterdevice(device)
 
   def detect_new_devices(self):
@@ -81,20 +81,20 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
       if (serialport not in self.get_device_serialportlist()):
         # Device
         device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport, destinationport = pyserialoscutils.find_free_port())
-        logging.info("Detected new device: {}. Adding it. If it has just been plugged in, please wait a few seconds for it to initialize before pressing any buttons.".format(serialport))
+        logging.info("Detected new device: %s. Adding it. If it has just been plugged in, please wait a few seconds for it to initialize before pressing any buttons.", serialport)
         
         devicehost = self.host
         deviceport = pyserialoscutils.find_free_port()
         if (device.start(devicehost, deviceport)):
           serialosc.registerdevice(device)
         else:
-          logging.error("Could not open device endpoint {}:{} at serialport {}, skipping".format(devicehost, deviceport, serialport))    
+          logging.error("Could not open device endpoint %s:%s at serialport %s, skipping", devicehost, deviceport, serialport)  
 
 # -----------
 # Cleanup
 # -----------
 def keyboardInterruptHandler(signal, frame):
-    logging.debug("KeyboardInterrupt (ID: {}) has been caught. Cleaning up...".format(signal))
+    logging.debug("KeyboardInterrupt (ID: %s) has been caught. Cleaning up...", signal)
     logging.debug("Stopping serialosc")
     serialosc.stop()
     exit(0)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
   serialosc = SerialOscMainEndpoint(args.onlytheseserialports, args.nottheseserialports)
   if (not serialosc.start(serialoschost, serialoscport)):
-    logging.error("Could not start serialosc main server at {}:{}.\nMaybe the original serialoscd is running?\nYou can also specify a specific port using --serialoscport".format(serialoschost, serialoscport))
+    logging.error("Could not start serialosc main server at %s:%s.\nMaybe the original serialoscd is running?\nYou can also specify a specific port using --serialoscport", serialoschost, serialoscport)
     sys.exit(1)
 
 
