@@ -21,19 +21,6 @@ class SerialOscDeviceMessageSender():
   def send_message_to_specific_endpoint(self, host, port, path, *osc_arguments):
     pyserialoscutils.OscClientWrapper(host, port).send_message(path, *osc_arguments)
 
-  def send_info(self, id, sizex, sizey, rotation, destinationhost = "", destinationport = ""):
-    if(destinationhost == ""):
-        destinationhost = self.destinationport
-    if(destinationport == ""):
-        destinationport = self.destinationport
-    logging.debug("Sending info with  targethost {} and targetport {}".format(destinationhost, destinationport))
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/id", id)
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/size", sizex, sizey)
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/host", self.destinationhost)
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/port", self.destinationport)
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/prefix", self.messageprefix)
-    self.send_message_to_specific_endpoint(destinationhost, destinationport, "/sys/rotation", rotation)
-
   def send_grid_key(self, x, y, state):
     logging.debug("Device with prefix {} sending key x {}, y {}, state {}".format(self.messageprefix, x, y, state))
     self.send_prefix_message_to_destination("/grid/key", x, y, state)

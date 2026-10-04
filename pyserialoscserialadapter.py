@@ -5,18 +5,21 @@ import time
 import pyserialoscsender
 import serial.serialutil
 
+# seconds to wait for the device to answer
+RESPONSE_TIMEOUT = 1.0
+
 # -----------
 # This is processing stuff coming from the device
 # -----------
 
 
 class SerialListener:
-  def __init__(self, serial, messagesender):
+  def __init__(self, serial, keyhandler):
     super().__init__()
     self.__serial = serial
     self.running = False
     self.interval = 0.02
-    self.__messagesender = messagesender
+    self.__keyhandler = keyhandler
 
   def start(self):
     logging.debug("Start listening on port %s", self.__serial.port)
@@ -37,15 +40,15 @@ class SerialListener:
           self.dispatchmessage(firstbyte)
         time.sleep(self.interval)
       except (serial.serialutil.SerialException, AttributeError) as e:
-        logging.warn("Could not read from serial, Exception was %s", e)
+        logging.warning("Could not read from serial, Exception was %s", e)
         self.running = False
 
   def dispatchmessage(self, firstbyte):
     # we're receiving device info
     if (firstbyte == b"\x00"):
-      self.process_device_info()
+      self.read_device_info()
     elif (firstbyte == b"\x01"):
-      self.process_device_id()
+      self.read_device_id()
     elif (firstbyte == b"\x02"):
       self.process_grid_offset()
     elif (firstbyte == b"\x03"):
@@ -59,74 +62,73 @@ class SerialListener:
     elif (firstbyte == b"\x21"):
       self.process_key_down()
     else:
-      logging.warn(
-        "Unknown serial message received: %s. Ignoring by flushing rest. Might cause instability.", firstbyte)
-      self.__serial.flush()
+      logging.warning(
+        "Unknown serial message received: %s. Ignoring by discarding pending input. Might cause instability.", firstbyte)
+      self.__serial.reset_input_buffer()
+
+  # returns None if the device did not send enough bytes in time
+  def read_payload(self, length):
+    payload = self.__serial.read(length)
+    if (len(payload) < length):
+      logging.warning("Incomplete serial message from %s: %s", self.__serial.port, payload)
+      return None
+    return payload
 
   def process_key_up(self):
-    payload = self.__serial.read(2)
-    x = payload[0]
-    y = payload[1]
-    self.__messagesender.send_grid_key(x, y, 0)
+    payload = self.read_payload(2)
+    if (payload):
+      self.__keyhandler(payload[0], payload[1], 0)
 
   def process_key_down(self):
-    payload = self.__serial.read(2)
-    x = payload[0]
-    y = payload[1]
-    self.__messagesender.send_grid_key(x, y, 1)
-
-  def process_device_id(self):
-    self.read_device_id
-    # Maybe want to push this back to osc
-
-  def process_device_info(self):
-    self.read_device_info
-    # Maybe want to push this back to osc
+    payload = self.read_payload(2)
+    if (payload):
+      self.__keyhandler(payload[0], payload[1], 1)
 
   def process_grid_offset(self):
-    payload = self.__serial.read(3)
-    gridnumber = payload[0]
-    xoffset = payload[1]
-    yoffset = payload[2]
-    return(gridnumber, xoffset, yoffset)
+    payload = self.read_payload(3)
+    if (payload):
+      return (payload[0], payload[1], payload[2])
 
   def process_grid_size(self):
-    payload = self.__serial.read(2)
-    xsize = payload[0]
-    ysize = payload[1]
-    return(xsize, ysize)
+    payload = self.read_payload(2)
+    if (payload):
+      return (payload[0], payload[1])
 
   def process_device_addr(self):
-    payload = self.__serial.read(2)
-    gridaddr = payload[0]
-    gridtype = payload[1]
-    return(gridaddr, gridtype)
+    payload = self.read_payload(2)
+    if (payload):
+      return (payload[0], payload[1])
 
   def process_device_firmware_version(self):
-    versionbytes = self.__serial.read(0)
-    return string_from_bytes(versionbytes)
+    versionbytes = self.read_payload(8)
+    if (versionbytes):
+      return string_from_bytes(versionbytes)
 
   def read_device_info(self):
-    payload = self.__serial.read(2)
+    payload = self.read_payload(2)
+    if (not payload):
+      return None
 
-    # second is device type
+    # first is device type
     typelist = [None, "led-grid", "key-grid", "digital-out", "digital-in",
           "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
-    actualtype = typelist[payload[0]]
+    actualtype = typelist[payload[0]] if payload[0] < len(typelist) else None
     logging.info("Device type is %s", actualtype)
 
-    if (actualtype not in typelist[1:2]):
-      logging.warn(
+    if (actualtype not in ("led-grid", "key-grid")):
+      logging.warning(
         "Device-Type probably not supported: %s. Only grids are supported for now", actualtype)
 
-    # third is the number of devices/quads (e.g. 64 buttons per device/quad)
+    # second is the number of devices/quads (e.g. 64 buttons per device/quad)
     devicecount = payload[1]
     logging.debug("Device count is %s", devicecount)
 
     return(actualtype, devicecount)
 
   def read_device_id(self):
-    readid = self.__serial.read(32)
+    readid = self.read_payload(32)
+    if (not readid):
+      return None
     cleanedid = string_from_bytes(readid)
     logging.debug("Cleaned ID is '%s'", cleanedid)
     return cleanedid
@@ -136,55 +138,77 @@ class SerialListener:
 # This is triggering commands on the device
 # -----------
 class SerialAdapter:
-  def __init__(self, serialport, messagesender):
+  def __init__(self, serialport, keyhandler):
     super().__init__()
     logging.debug("Initializing serial port %s", serialport)
     self.serialport = serialport
     self.__serial = serial.Serial()
     self.__serial.port = self.serialport
     self.__serial.baudrate = 115200
-    self.__listener = SerialListener(self.__serial, messagesender)
+    # so that ports without a monome behind them can not block us forever
+    self.__serial.timeout = RESPONSE_TIMEOUT
+    self.__listener = SerialListener(self.__serial, keyhandler)
 
   def start(self):
     logging.info("Opening serial port %s", self.serialport)
 
     try:
       self.__serial.open()
-      # Flush any remaining fragments
-      self.__serial.flush()
-      self.__listener.start()
+      # Discard any remaining fragments
+      self.__serial.reset_input_buffer()
     except serial.serialutil.SerialException as e:
-      logging.warn("Could not open port %s, Exception was %s",
+      logging.warning("Could not open port %s, Exception was %s",
              self.serialport, e)
       return False
 
     return True
 
+  # only start after get_device_metadata, otherwise the listener thread
+  # would consume the metadata responses
+  def start_listening(self):
+    self.__listener.start()
+
   def stop(self):
     logging.info("Closing serial port %s", self.serialport)
-    self.__listener.stop()
-    if (self.__serial.isOpen()):
+    if (self.__listener.running):
+      self.__listener.stop()
+    if (self.__serial.is_open):
       self.__serial.close()
 
   def is_alive(self):
-    return self.__serial.isOpen() and self.__listener.running
+    return self.__serial.is_open and self.__listener.running
 
+  # returns None if the device does not answer like a monome grid
   def get_device_metadata(self):
-    # FIXME: Exception handling if it's not supported?
-    self.request_device_information()
-    self.__serial.read()
-    device_info = self.__listener.read_device_info()
+    try:
+      self.request_device_information()
+      device_info = self.wait_for_response(b"\x00") and self.__listener.read_device_info()
 
-    # FIXME: Exception handling if it's not supported?
-    self.request_device_id()
-    self.__serial.read()
-    device_id = self.__listener.read_device_id()
+      self.request_device_id()
+      device_id = self.wait_for_response(b"\x01") and self.__listener.read_device_id()
 
-    self.request_device_size()
-    self.__serial.read()
-    grid_size = self.__listener.process_grid_size()
+      self.request_device_size()
+      grid_size = self.wait_for_response(b"\x03") and self.__listener.process_grid_size()
+    except serial.serialutil.SerialException as e:
+      logging.warning("Could not query device on %s, Exception was %s", self.serialport, e)
+      return None
 
+    if (not (device_info and grid_size and grid_size[0] and grid_size[1])):
+      return None
+    if (not device_id):
+      device_id = "unknown-" + self.serialport
     return (device_id, device_info, grid_size)
+
+  def wait_for_response(self, header):
+    deadline = time.monotonic() + RESPONSE_TIMEOUT
+    while (time.monotonic() < deadline):
+      firstbyte = self.__serial.read()
+      if (firstbyte == header):
+        return True
+      elif (firstbyte in (b"\x20", b"\x21")):
+        self.__serial.read(2)  # skip keys pressed during startup
+    logging.debug("No response %s from %s", header, self.serialport)
+    return False
 
   # device calls
   def set_grid_led(self, x, y, newstate):
@@ -263,8 +287,7 @@ class SerialAdapter:
     message = b'\x1A'
     message += int_to_byte(offsetx)
     message += int_to_byte(offsety)
-    for level in levelarray[0:64]:
-      message += int_to_byte(level)
+    message += pack_levels(levelarray[0:64])
     self.__serial.write(message)
 
   def set_grid_led_row_level(self, offsetx, offsety, levelarray):
@@ -273,8 +296,7 @@ class SerialAdapter:
     message = b'\x1B'
     message += int_to_byte(offsetx)
     message += int_to_byte(offsety)
-    for level in levelarray[0:8]:
-      message += int_to_byte(level)
+    message += pack_levels(levelarray[0:8])
     self.__serial.write(message)
 
   def set_grid_led_column_level(self, offsetx, offsety, levelarray):
@@ -283,8 +305,7 @@ class SerialAdapter:
     message = b'\x1C'
     message += int_to_byte(offsetx)
     message += int_to_byte(offsety)
-    for level in levelarray[0:8]:
-      message += int_to_byte(level)
+    message += pack_levels(levelarray[0:8])
     self.__serial.write(message)
 
   def request_device_information(self):
@@ -301,7 +322,13 @@ class SerialAdapter:
 
 
 def int_to_byte(integernumber):
-  return bytes([integernumber])
+  return bytes([integernumber & 0xFF])
+
+
+# two 4-bit levels per byte, first level in the high nibble (as libmonome does)
+def pack_levels(levels):
+  return bytes(((levels[i] & 0x0F) << 4) | (levels[i + 1] & 0x0F)
+               for i in range(0, len(levels), 2))
 
 
 def string_from_bytes(bytes):

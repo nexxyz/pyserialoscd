@@ -4,9 +4,10 @@ import argparse
 import time
 import sys
 
-from pythonosc import dispatcher
 import pyserialoscutils
 import pyserialoscdevice
+
+VERSION = "1.1"
 
 # -----------
 # The main serialoscd listener
@@ -14,21 +15,29 @@ import pyserialoscdevice
 
 
 class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
-  def __init__(self, onlytheseserialports=[], nottheseserialports=[]):
+  def __init__(self, onlytheseserialports=[], nottheseserialports=[], config=None):
     super().__init__("serialoscmain")
     # Binding handling of incoming requests
     self.dispatcher.map("/serialosc/list", self.list_devices)
     self.dispatcher.map("/serialosc/notify", self.notify_next_change)
+    self.dispatcher.map("/serialosc/status", self.report_status)
+    self.dispatcher.map("/serialosc/version", self.report_version)
+    self.dispatcher.map("/serialosc/enable", self.enable)
+    self.dispatcher.map("/serialosc/disable", self.disable)
     self.devices = []
     self.notifytargets = []
+    # ports that did not answer like a monome, only retried once they reappear
+    self.ignoredserialports = set()
+    self.enabled = True
     self.onlytheseserialports = onlytheseserialports
     self.nottheseserialports = nottheseserialports
+    self.config = config
 
   def list_devices(self, requestpath, targethost, targetport):
     logging.debug("list requested via %s for %s:%s",
                   requestpath, targethost, targetport)
 
-    for device in self.devices:
+    for device in list(self.devices):
       pyserialoscutils.OscClientWrapper(targethost, targetport).send_message(
           "/serialosc/device", device.id, device.type, device.port)
 
@@ -37,26 +46,43 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
                   requestpath, targethost, targetport)
     self.notifytargets.append((targethost, targetport))
 
+  def report_status(self, requestpath, targethost, targetport):
+    pyserialoscutils.OscClientWrapper(targethost, targetport).send_message(
+        "/serialosc/status", int(self.enabled))
+
+  def report_version(self, requestpath, targethost, targetport):
+    pyserialoscutils.OscClientWrapper(targethost, targetport).send_message(
+        "/serialosc/version", VERSION, "pyserialoscd")
+
+  def enable(self, requestpath):
+    logging.info("serialosc enabled")
+    self.enabled = True
+
+  def disable(self, requestpath):
+    logging.info("serialosc disabled, releasing all devices")
+    self.enabled = False
+
+  def notify(self, path, device):
+    # like serialosc, a notification request is only valid for one change
+    notifytargets, self.notifytargets = self.notifytargets, []
+    for notifytarget in notifytargets:
+      pyserialoscutils.OscClientWrapper(
+          notifytarget[0], notifytarget[1]).send_message(path, device.id, device.type, device.port)
+
   def registerdevice(self, device):
     logging.debug("Registering device %s", device.id)
     self.devices.append(device)
-    for notifytarget in self.notifytargets:
-      pyserialoscutils.OscClientWrapper(
-          notifytarget[0], notifytarget[1]).send_message("/serialosc/add", device.id)
-    self.notifytargets = []
+    self.notify("/serialosc/add", device)
 
   def unregisterdevice(self, device):
     logging.debug("Unregistering device %s", device.id)
     self.devices.remove(device)
-    for notifytarget in self.notifytargets:
-      pyserialoscutils.OscClientWrapper(
-          notifytarget[0], notifytarget[1]).send_message("/serialosc/remove", device.id)
-    self.notifytargets = []
+    device.stop()
+    self.notify("/serialosc/remove", device)
 
   def stop(self):
-    for device in self.devices:
+    for device in list(self.devices):
       self.unregisterdevice(device)
-      device.stop()
     super().stop()
 
   def get_device_serialportlist(self):
@@ -67,18 +93,35 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
     return resultlist
 
   def remove_dead_devices(self):
-    for device in self.devices:
-      if (device.serialport not in pyserialoscutils.list_serial_ports()):
+    currentports = pyserialoscutils.list_serial_ports()
+    self.ignoredserialports.intersection_update(currentports)
+    for device in list(self.devices):
+      if (not self.enabled):
+        self.unregisterdevice(device)
+      elif (device.serialport not in currentports):
         logging.warning(
             "Device no longer listed as serial port: %s. Removing it", device.serialport)
         self.unregisterdevice(device)
-        device.stop()
       elif (not device.is_alive()):
         logging.warning(
             "Detected dead device: %s. Removing it.", device.friendlyname)
         self.unregisterdevice(device)
 
+  def unique_device_id(self, deviceid):
+    # several devices with the same id (e.g. the default "neo-monome") would
+    # confuse applications and share their stored settings
+    usedids = [device.id for device in self.devices]
+    uniqueid = deviceid
+    number = 2
+    while (uniqueid in usedids):
+      uniqueid = "{}-{}".format(deviceid, number)
+      number += 1
+    return uniqueid
+
   def detect_new_devices(self):
+    if (not self.enabled):
+      return
+
     currentports = pyserialoscutils.list_serial_ports()
 
     if (self.onlytheseserialports):
@@ -89,19 +132,24 @@ class SerialOscMainEndpoint(pyserialoscutils.OscServerWrapper):
           set(currentports).difference(self.nottheseserialports))
 
     for serialport in currentports:
-      if (serialport not in self.get_device_serialportlist()):
-        # Device
-        device = pyserialoscdevice.SerialOscDeviceEndpoint(
-            serialport, destinationport=pyserialoscutils.find_free_port())
-        logging.info("Detected new device: %s. Adding it. If it has just been plugged in, please wait a few seconds for it to initialize before pressing any buttons.", serialport)
+      if (serialport in self.get_device_serialportlist() or serialport in self.ignoredserialports):
+        continue
 
-        devicehost = self.host
-        deviceport = pyserialoscutils.find_free_port()
-        if (device.start(devicehost, deviceport)):
-          serialosc.registerdevice(device)
-        else:
-          logging.error("Could not open device endpoint %s:%s at serialport %s, skipping",
-                        devicehost, deviceport, serialport)
+      device = pyserialoscdevice.SerialOscDeviceEndpoint(serialport, self.config)
+      logging.info("Detected new device: %s. Adding it. If it has just been plugged in, please wait a few seconds for it to initialize before pressing any buttons.", serialport)
+      if (not device.connect()):
+        logging.warning("No monome grid found on %s, ignoring it until it is plugged in again", serialport)
+        self.ignoredserialports.add(serialport)
+        continue
+
+      device.id = self.unique_device_id(device.id)
+      if (device.start(self.host)):
+        self.registerdevice(device)
+        logging.info("Device %s (%s) on %s is listening on port %s",
+                     device.id, device.type, serialport, device.port)
+      else:
+        logging.error("Could not open device endpoint on %s for serialport %s, skipping",
+                      self.host, serialport)
 
 # -----------
 # Cleanup
@@ -133,6 +181,8 @@ if __name__ == "__main__":
                       default="localhost", help="The ip/hostname for the main serialosc server to listen on")
   parser.add_argument("--serialoscport", default=12002, type=int,
                       help="The UDP port that main serialosc server will use.")
+  parser.add_argument("--configdir", default=None,
+                      help="Where the settings (port, prefix, rotation, ...) of each device are stored")
   parser.add_argument("--loglevel", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
                       default="INFO", help="The output log level, e.g. ERROR, WARNING, INFO, DEBUG")
   args = parser.parse_args()
@@ -144,7 +194,8 @@ if __name__ == "__main__":
   serialoscport = args.serialoscport
 
   serialosc = SerialOscMainEndpoint(
-      args.onlytheseserialports, args.nottheseserialports)
+      args.onlytheseserialports, args.nottheseserialports,
+      pyserialoscutils.DeviceConfigStore(args.configdir))
   if (not serialosc.start(serialoschost, serialoscport)):
     logging.error("Could not start serialosc main server at %s:%s.\nMaybe the original serialoscd is running?\nYou can also specify a specific port using --serialoscport", serialoschost, serialoscport)
     sys.exit(1)

@@ -8,7 +8,8 @@ import os
 from pythonosc import dispatcher
 from pythonosc import osc_server
 from pythonosc.udp_client import SimpleUDPClient
-import pyserialoscutils
+import json
+import re
 
 # chose an implementation, depending on os
 #~ if sys.platform == 'cli':
@@ -21,6 +22,11 @@ else:
     raise ImportError(
         "Sorry: no implementation for your platform ('%s') available", os.name)
 
+
+# serialosc defaults for new devices
+DEFAULT_PREFIX = "/monome"
+DEFAULT_APP_HOST = "127.0.0.1"
+DEFAULT_APP_PORT = 8000
 
 # -----------
 # To make it a bit easier to send osc messages
@@ -52,7 +58,7 @@ class OscServerWrapper:
     self.running = False
 
   def default_osc_handler(self, source, *osc_arguments):
-    logging.warn("WARNING: Unhandled OSC message received by %s. Source: %s, Content %s",
+    logging.warning("WARNING: Unhandled OSC message received by %s. Source: %s, Content %s",
                  self.friendlyname, source, osc_arguments)
 
   def start(self, host, port):
@@ -63,7 +69,7 @@ class OscServerWrapper:
       self.__server = osc_server.BlockingOSCUDPServer(
           (self.host, self.port), self.dispatcher)
     except OSError as e:
-      logging.warn("WARNING: Error starting OSCUDPServer %s: %s.",
+      logging.warning("WARNING: Error starting OSCUDPServer %s: %s.",
                    self.friendlyname, e)
       return False
 
@@ -78,7 +84,9 @@ class OscServerWrapper:
     logging.info("Stopping OSC server: %s", self.friendlyname)
     if (self.running):
       self.__server.shutdown()
+      self.__server.server_close()
       self.__server_thread.join()
+      self.running = False
 
 
 def map_localhost_to_ip4(host):
@@ -102,33 +110,77 @@ def list_serial_ports():
 
     return portlist
 
-# unused so far - might include in pyserialoscdevice later
+# -----------
+# Translates between application and device coordinates for a rotated grid.
+# Follows libmonome's conventions so apps behave as with the original serialosc.
+# -----------
+class GridRotation:
+  VALID_DEGREES = (0, 90, 180, 270)
 
+  def __init__(self, devicecols, devicerows, degrees=0):
+    self.devicecols = devicecols
+    self.devicerows = devicerows
+    self.degrees = degrees
 
-def rotate_coordinates(x, y, xsize, ysize, degrees):
-  if (degrees == 0):
+  def app_size(self):
+    if (self.degrees in (90, 270)):
+      return (self.devicerows, self.devicecols)
+    return (self.devicecols, self.devicerows)
+
+  def to_device(self, x, y):
+    appcols, approws = self.app_size()
+    if (self.degrees == 90):
+      return (y, appcols - 1 - x)
+    elif (self.degrees == 180):
+      return (appcols - 1 - x, approws - 1 - y)
+    elif (self.degrees == 270):
+      return (approws - 1 - y, x)
     return (x, y)
-  elif(degrees == 90):
-    return (y, xsize - x - 1)
-  elif(degrees == 180):
-    return (xsize - x - 1, ysize - y - 1)
-  elif(degrees == 270):
-    return (ysize - y - 1, x)
-  else:
-    logging.error(
-        "Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got %s. Ignoring rotation.", degrees)
+
+  def to_app(self, x, y):
+    appcols, approws = self.app_size()
+    if (self.degrees == 90):
+      return (appcols - 1 - y, x)
+    elif (self.degrees == 180):
+      return (appcols - 1 - x, approws - 1 - y)
+    elif (self.degrees == 270):
+      return (y, approws - 1 - x)
     return (x, y)
 
+  def on_device(self, x, y):
+    return 0 <= x < self.devicecols and 0 <= y < self.devicerows
 
-def rotate_map(map, degrees):
-  returnmap = map
-  if (not degrees % 90 == 0):
-    logging.error(
-        "Only rotations in increments of 90 are allowed (i.e. 0, 90, 180, 270). Got %s. Ignoring rotation.", degrees)
-    return
 
-  rotatetimes = int(degrees / 90)
-  for _ in range(rotatetimes):
-    returnmap = zip(*returnmap[::-1])
+# -----------
+# Remembers settings per device id between runs, like serialosc does
+# -----------
+class DeviceConfigStore:
+  def __init__(self, directory=None):
+    if (directory is None):
+      if (os.name == 'nt'):
+        base = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+      else:
+        base = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+      directory = os.path.join(base, "pyserialoscd")
+    self.directory = directory
 
-  return returnmap
+  def path(self, deviceid):
+    return os.path.join(self.directory, re.sub(r"[^\w.-]", "_", deviceid) + ".json")
+
+  def load(self, deviceid):
+    try:
+      with open(self.path(deviceid), encoding="utf-8") as configfile:
+        return json.load(configfile)
+    except FileNotFoundError:
+      return {}
+    except (OSError, ValueError) as e:
+      logging.warning("Could not read settings for device %s: %s", deviceid, e)
+      return {}
+
+  def save(self, deviceid, settings):
+    try:
+      os.makedirs(self.directory, exist_ok=True)
+      with open(self.path(deviceid), "w", encoding="utf-8") as configfile:
+        json.dump(settings, configfile, indent=2)
+    except OSError as e:
+      logging.warning("Could not save settings for device %s: %s", deviceid, e)
